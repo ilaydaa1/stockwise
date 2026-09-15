@@ -1,0 +1,61 @@
+# Dependencies
+node_modules/
+vendor/
+*.pyc
+__pycache__/
+.venv/
+venv/
+env/
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+
+# Environment files with secrets
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+
+# Database
+*.db
+*.sqlite
+
+# Logs
+*.log
+
+# Alembic
+alembic/versions/*.pyc
+
+# Test
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Misc
+*.pid
+*.seed
+
+# Environment variants
+.env.*
+!.env.example
+!.env.*.example
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Accidental Windows command output
+nul

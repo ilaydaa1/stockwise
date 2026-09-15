@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: stockwise_postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-stockwise}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-stockwise_local_password}
+      POSTGRES_DB: ${POSTGRES_DB:-stockwise}
+    volumes:
+      - stockwise_pgdata:/var/lib/postgresql/data
+      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-stockwise} -d ${POSTGRES_DB:-stockwise}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  stockwise_pgdata:
