@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import ConnectionStatus from '../components/ConnectionStatus'
 
 export default function Home() {
@@ -8,6 +9,20 @@ export default function Home() {
         <p className="text-lg text-gray-600 mb-8">
           Satış, stok ve karar destek platformu
         </p>
+        <div className="flex gap-4 mb-8">
+          <Link
+            to="/login"
+            className="flex-1 py-3 px-4 bg-blue-800 text-white rounded-lg hover:bg-blue-900 transition-colors font-medium"
+          >
+            Giriş Yap
+          </Link>
+          <Link
+            to="/register"
+            className="flex-1 py-3 px-4 bg-white text-blue-800 border-2 border-blue-800 rounded-lg hover:bg-blue-50 transition-colors font-medium"
+          >
+            Kayıt Ol
+          </Link>
+        </div>
         <ConnectionStatus />
       </div>
     </div>

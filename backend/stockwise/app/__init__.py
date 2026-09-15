@@ -1,1 +1,0 @@
-from stockwise.app.main import app

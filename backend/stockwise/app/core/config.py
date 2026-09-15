@@ -26,6 +26,15 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
     ]
 
+    secret_key: str = "dev-secret-change-in-production"
+    session_cookie_secure: bool = False
+    session_cookie_same_site: str = "lax"
+    session_cookie_max_age: int = 86400 * 7  # 7 days
+    csrf_cookie_max_age: int = 86400  # 1 day
+
+    rate_limit_register: str = "5/minute"
+    rate_limit_login: str = "10/minute"
+
 
 @lru_cache()
 def get_settings() -> Settings:
