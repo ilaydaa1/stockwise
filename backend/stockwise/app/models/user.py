@@ -32,6 +32,9 @@ class User(Base):
     sessions: Mapped[list["AuthSession"]] = relationship(
         "AuthSession", back_populates="user", cascade="all, delete-orphan"
     )
+    business: Mapped["Business | None"] = relationship(
+        "Business", back_populates="owner", uselist=False
+    )
 
     def __repr__(self) -> str:
         return f"<User {self.email}>"
