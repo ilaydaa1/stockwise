@@ -1,58 +1,11 @@
 import pytest
 from datetime import datetime, timezone, timedelta
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
-from stockwise.app.main import app
-from stockwise.app.db.base import Base
-from stockwise.app.db.session import get_db
 from stockwise.app.models.user import User
 from stockwise.app.models.session import AuthSession
 from stockwise.app.core.security import hash_token
-
-TEST_DATABASE_URL = "sqlite:///:memory:"
-
-engine = create_engine(
-    TEST_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
-TestingSessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-
-
-def override_get_db():
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-app.dependency_overrides[get_db] = override_get_db
-
-
-@pytest.fixture(autouse=True)
-def setup_db():
-    Base.metadata.create_all(bind=engine)
-    yield
-    Base.metadata.drop_all(bind=engine)
-
-
-@pytest.fixture
-def client():
-    with TestClient(app) as c:
-        yield c
-
-
-@pytest.fixture(autouse=True)
-def _no_rate_limit():
-    from stockwise.app.core.limiter import limiter
-    original = limiter.enabled
-    limiter.enabled = False
-    yield
-    limiter.enabled = original
+from tests.conftest import TestingSessionLocal
 
 
 def _register_and_login(client, email="test@example.com"):
@@ -241,7 +194,6 @@ class TestLogout:
     def test_logout_rejected_with_cookie_only(self, client):
         _register_and_login(client)
         csrf = client.cookies.get("sw_csrf", "")
-        # Send cookie but no header
         client.cookies.set("sw_csrf", csrf)
         response = client.post("/api/auth/logout")
         assert response.status_code == 403
@@ -276,7 +228,6 @@ class TestSessionRevocation:
         token_hash = hash_token(token)
         session = db.query(AuthSession).filter(AuthSession.token_hash == token_hash).first()
         if session:
-            from datetime import datetime, timezone
             session.revoked_at = datetime.now(timezone.utc)
             db.commit()
         db.close()
@@ -307,7 +258,7 @@ class TestRateLimiting:
         shared_limiter.enabled = True
         shared_limiter._storage = MemoryStorage()
         try:
-            with TestClient(app) as c:
+            with TestClient(__import__('stockwise.app.main', fromlist=['app']).app) as c:
                 for i in range(limit):
                     resp = c.post(endpoint, json={
                         **payload,
@@ -345,7 +296,7 @@ class TestRateLimiting:
         shared_limiter.enabled = True
         shared_limiter._storage = MemoryStorage()
         try:
-            with TestClient(app) as c:
+            with TestClient(__import__('stockwise.app.main', fromlist=['app']).app) as c:
                 c.post("/api/auth/register", json={
                     "name": "Rate Limit User",
                     "email": "ratelimit_login@example.com",
