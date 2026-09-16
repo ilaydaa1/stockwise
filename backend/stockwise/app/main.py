@@ -9,6 +9,7 @@ from stockwise.app.api import health, ready
 from stockwise.app.api.auth import router as auth_router
 from stockwise.app.api.business import router as business_router
 from stockwise.app.api.products import router as products_router
+from stockwise.app.api.stock_movements import router as stock_movements_router
 
 
 def create_application() -> FastAPI:
@@ -59,6 +60,12 @@ def create_application() -> FastAPI:
         products_router,
         prefix="/api",
         tags=["products"],
+    )
+
+    application.include_router(
+        stock_movements_router,
+        prefix="/api",
+        tags=["stock-movements"],
     )
 
     return application

@@ -86,6 +86,12 @@ class Product(Base):
         back_populates="products",
     )
 
+    stock_movements: Mapped[list["StockMovement"]] = relationship(
+        "StockMovement",
+        back_populates="product",
+        cascade="all, delete-orphan",
+    )
+
     __table_args__ = (
         UniqueConstraint(
             "business_id",
