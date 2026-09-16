@@ -1,7 +1,8 @@
 from enum import Enum
 from typing import Optional
+from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
 
 class MovementType(str, Enum):
@@ -12,25 +13,22 @@ class MovementType(str, Enum):
 
 
 class CreateStockMovementRequest(BaseModel):
-    product_id: str
+    product_id: UUID
     movement_type: MovementType
     quantity: int = Field(..., gt=0)
-    note: Optional[str] = Field(None, max_length=255)
-
-    @field_validator("product_id")
-    @classmethod
-    def product_id_must_be_uuid(cls, v: str) -> str:
-        # UUID validation is handled by the database layer
-        return v
+    note: Optional[str] = Field(
+        default=None,
+        max_length=255,
+    )
 
 
 class StockMovementResponse(BaseModel):
-    id: str
-    business_id: str
-    product_id: str
-    movement_type: str
+    id: UUID
+    business_id: UUID
+    product_id: UUID
+    movement_type: MovementType
     quantity: int
     stock_before: int
     stock_after: int
-    note: Optional[str]
+    note: Optional[str] = None
     created_at: str

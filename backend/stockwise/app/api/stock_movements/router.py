@@ -1,4 +1,5 @@
 from typing import Optional
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -50,10 +51,18 @@ def create_stock_movement(
             detail="BUSINESS_NOT_FOUND",
         )
 
+    try:
+        product_uuid = UUID(str(body.product_id))
+    except (ValueError, TypeError):
+        raise HTTPException(
+            status_code=422,
+            detail="INVALID_PRODUCT_ID",
+        )
+
     product = (
         db.query(Product)
         .filter(
-            Product.id == body.product_id,
+            Product.id == product_uuid,
             Product.business_id == business.id,
             Product.is_active.is_(True),
         )
@@ -67,17 +76,23 @@ def create_stock_movement(
             detail="PRODUCT_NOT_FOUND",
         )
 
-    if body.movement_type in (MovementType.IN, MovementType.ADJUSTMENT_IN):
-        stock_after = product.stock_quantity + body.quantity
-    else:  # OUT, ADJUSTMENT_OUT
-        if product.stock_quantity < body.quantity:
+    stock_before = product.stock_quantity
+
+    if body.movement_type in (
+        MovementType.IN,
+        MovementType.ADJUSTMENT_IN,
+    ):
+        stock_after = stock_before + body.quantity
+
+    else:
+        if stock_before < body.quantity:
             raise HTTPException(
                 status_code=400,
                 detail="INSUFFICIENT_STOCK",
             )
-        stock_after = product.stock_quantity - body.quantity
 
-    stock_before = product.stock_quantity
+        stock_after = stock_before - body.quantity
+
     product.stock_quantity = stock_after
 
     movement = StockMovement(
@@ -96,6 +111,7 @@ def create_stock_movement(
         db.commit()
     except Exception:
         db.rollback()
+
         raise HTTPException(
             status_code=500,
             detail="DATABASE_ERROR",
@@ -142,21 +158,35 @@ def list_stock_movements(
     )
 
     if product_id:
-        query = query.filter(StockMovement.product_id == product_id)
+        try:
+            product_uuid = UUID(product_id)
+        except (ValueError, TypeError):
+            raise HTTPException(
+                status_code=422,
+                detail="INVALID_PRODUCT_ID",
+            )
 
-    movements = query.order_by(StockMovement.created_at.desc()).all()
+        query = query.filter(
+            StockMovement.product_id == product_uuid
+        )
+
+    movements = (
+        query
+        .order_by(StockMovement.created_at.desc())
+        .all()
+    )
 
     return [
         StockMovementResponse(
-            id=str(m.id),
-            business_id=str(m.business_id),
-            product_id=str(m.product_id),
-            movement_type=m.movement_type,
-            quantity=m.quantity,
-            stock_before=m.stock_before,
-            stock_after=m.stock_after,
-            note=m.note,
-            created_at=m.created_at.isoformat(),
+            id=str(movement.id),
+            business_id=str(movement.business_id),
+            product_id=str(movement.product_id),
+            movement_type=movement.movement_type,
+            quantity=movement.quantity,
+            stock_before=movement.stock_before,
+            stock_after=movement.stock_after,
+            note=movement.note,
+            created_at=movement.created_at.isoformat(),
         )
-        for m in movements
+        for movement in movements
     ]

@@ -73,10 +73,24 @@ class StockMovement(Base):
     )
 
     __table_args__ = (
-        Index("ix_stock_movements_business_id", "business_id"),
-        Index("ix_stock_movements_product_id", "product_id"),
-        Index("ix_stock_movements_created_at", "created_at"),
+        Index(
+            "ix_stock_movements_business_id",
+            "business_id",
+        ),
+        Index(
+            "ix_stock_movements_product_id",
+            "product_id",
+        ),
+        Index(
+            "ix_stock_movements_created_at",
+            "created_at",
+        ),
     )
 
     def __repr__(self) -> str:
-        return f"<StockMovement {self.movement_type} {self.quantity} product={self.product_id}>"
+        return (
+            f"<StockMovement "
+            f"{self.movement_type} "
+            f"{self.quantity} "
+            f"product={self.product_id}>"
+        )

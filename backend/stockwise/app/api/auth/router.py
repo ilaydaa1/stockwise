@@ -34,6 +34,7 @@ def register(
     normalized_email = body.email.strip().lower()
 
     existing = db.query(User).filter(User.email == normalized_email).first()
+
     if existing:
         raise HTTPException(
             status_code=409,
@@ -45,7 +46,9 @@ def register(
         name=body.name.strip(),
         hashed_password=hash_password(body.password),
     )
+
     db.add(user)
+
     try:
         db.commit()
     except Exception:
@@ -54,6 +57,7 @@ def register(
             status_code=409,
             detail="Bu e-posta adresi zaten kayıtlı",
         )
+
     db.refresh(user)
 
     return MessageResponse(message="Kayıt başarılı")
@@ -70,8 +74,16 @@ def login(
 ) -> UserResponse:
     normalized_email = body.email.strip().lower()
 
-    user = db.query(User).filter(User.email == normalized_email).first()
-    if not user or not verify_password(body.password, user.hashed_password):
+    user = (
+        db.query(User)
+        .filter(User.email == normalized_email)
+        .first()
+    )
+
+    if not user or not verify_password(
+        body.password,
+        user.hashed_password,
+    ):
         raise HTTPException(
             status_code=401,
             detail="E-posta veya şifre hatalı",
@@ -101,7 +113,10 @@ def logout(
     _csrf: None = Depends(require_csrf),
 ) -> MessageResponse:
     destroy_session(request, response, db)
-    return MessageResponse(message="Çıkış yapıldı")
+
+    return MessageResponse(
+        message="Çıkış yapıldı",
+    )
 
 
 @router.get("/me", response_model=UserResponse)
