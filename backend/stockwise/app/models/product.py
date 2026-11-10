@@ -92,6 +92,11 @@ class Product(Base):
         cascade="all, delete-orphan",
     )
 
+    sale_items: Mapped[list["SaleItem"]] = relationship(
+        "SaleItem",
+        back_populates="product",
+    )
+
     __table_args__ = (
         UniqueConstraint(
             "business_id",

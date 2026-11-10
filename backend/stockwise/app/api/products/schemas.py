@@ -1,9 +1,56 @@
 from decimal import Decimal
 
-from pydantic import BaseModel, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    field_validator,
+    model_validator,
+)
+
+
+def validate_price_value(value: Decimal) -> Decimal:
+    if not value.is_finite():
+        raise ValueError(
+            "Fiyat geçerli bir sayı olmalıdır"
+        )
+
+    if value < 0:
+        raise ValueError(
+            "Fiyat negatif olamaz"
+        )
+
+    exponent = value.as_tuple().exponent
+
+    decimal_places = (
+        max(-exponent, 0)
+        if isinstance(exponent, int)
+        else 0
+    )
+
+    if decimal_places > 2:
+        raise ValueError(
+            "Fiyat en fazla 2 ondalık basamak içerebilir"
+        )
+
+    normalized = value.copy_abs()
+
+    if normalized == 0:
+        integer_digits = 1
+    else:
+        adjusted = normalized.adjusted()
+        integer_digits = max(adjusted + 1, 1)
+
+    if integer_digits + decimal_places > 12:
+        raise ValueError(
+            "Fiyat toplamda en fazla 12 basamak içerebilir"
+        )
+
+    return value
 
 
 class CreateProductRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str
     sku: str
     purchase_price: Decimal
@@ -13,107 +60,160 @@ class CreateProductRequest(BaseModel):
 
     @field_validator("name")
     @classmethod
-    def name_must_be_valid(cls, v: str) -> str:
-        v = v.strip()
+    def validate_name(cls, value: str) -> str:
+        value = value.strip()
 
-        if len(v) < 2:
-            raise ValueError("Ürün adı en az 2 karakter olmalıdır")
+        if len(value) < 2:
+            raise ValueError(
+                "Ürün adı en az 2 karakter olmalıdır"
+            )
 
-        if len(v) > 150:
-            raise ValueError("Ürün adı en fazla 150 karakter olmalıdır")
+        if len(value) > 150:
+            raise ValueError(
+                "Ürün adı en fazla 150 karakter olabilir"
+            )
 
-        return v
+        return value
 
     @field_validator("sku")
     @classmethod
-    def sku_must_be_valid(cls, v: str) -> str:
-        v = v.strip().upper()
+    def validate_sku(cls, value: str) -> str:
+        value = value.strip().upper()
 
-        if len(v) < 1:
-            raise ValueError("SKU boş olamaz")
+        if not value:
+            raise ValueError(
+                "SKU boş olamaz"
+            )
 
-        if len(v) > 50:
-            raise ValueError("SKU en fazla 50 karakter olmalıdır")
+        if len(value) > 50:
+            raise ValueError(
+                "SKU en fazla 50 karakter olabilir"
+            )
 
-        return v
+        return value
 
-    @field_validator("purchase_price", "sale_price")
+    @field_validator(
+        "purchase_price",
+        "sale_price",
+    )
     @classmethod
-    def prices_must_be_non_negative(cls, v: Decimal) -> Decimal:
-        if v < 0:
-            raise ValueError("Fiyat negatif olamaz")
+    def validate_price(
+        cls,
+        value: Decimal,
+    ) -> Decimal:
+        return validate_price_value(value)
 
-        return v
-
-    @field_validator("stock_quantity", "minimum_stock")
+    @field_validator(
+        "stock_quantity",
+        "minimum_stock",
+    )
     @classmethod
-    def stock_must_be_non_negative(cls, v: int) -> int:
-        if v < 0:
-            raise ValueError("Stok miktarı negatif olamaz")
+    def validate_stock(
+        cls,
+        value: int,
+    ) -> int:
+        if value < 0:
+            raise ValueError(
+                "Stok değeri negatif olamaz"
+            )
 
-        return v
+        return value
 
 
 class UpdateProductRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str | None = None
     sku: str | None = None
     purchase_price: Decimal | None = None
     sale_price: Decimal | None = None
     minimum_stock: int | None = None
 
+    @model_validator(mode="after")
+    def reject_explicit_nulls(self):
+        for field_name in self.model_fields_set:
+            if getattr(self, field_name) is None:
+                raise ValueError(
+                    f"{field_name} null olamaz"
+                )
+
+        return self
+
     @field_validator("name")
     @classmethod
-    def name_must_be_valid(cls, v: str | None) -> str | None:
-        if v is None:
-            return v
+    def validate_name(
+        cls,
+        value: str | None,
+    ) -> str | None:
+        if value is None:
+            return value
 
-        v = v.strip()
+        value = value.strip()
 
-        if len(v) < 2:
-            raise ValueError("Ürün adı en az 2 karakter olmalıdır")
+        if len(value) < 2:
+            raise ValueError(
+                "Ürün adı en az 2 karakter olmalıdır"
+            )
 
-        if len(v) > 150:
-            raise ValueError("Ürün adı en fazla 150 karakter olmalıdır")
+        if len(value) > 150:
+            raise ValueError(
+                "Ürün adı en fazla 150 karakter olabilir"
+            )
 
-        return v
+        return value
 
     @field_validator("sku")
     @classmethod
-    def sku_must_be_valid(cls, v: str | None) -> str | None:
-        if v is None:
-            return v
-
-        v = v.strip().upper()
-
-        if len(v) < 1:
-            raise ValueError("SKU boş olamaz")
-
-        if len(v) > 50:
-            raise ValueError("SKU en fazla 50 karakter olmalıdır")
-
-        return v
-
-    @field_validator("purchase_price", "sale_price")
-    @classmethod
-    def prices_must_be_non_negative(
+    def validate_sku(
         cls,
-        v: Decimal | None,
-    ) -> Decimal | None:
-        if v is not None and v < 0:
-            raise ValueError("Fiyat negatif olamaz")
+        value: str | None,
+    ) -> str | None:
+        if value is None:
+            return value
 
-        return v
+        value = value.strip().upper()
+
+        if not value:
+            raise ValueError(
+                "SKU boş olamaz"
+            )
+
+        if len(value) > 50:
+            raise ValueError(
+                "SKU en fazla 50 karakter olabilir"
+            )
+
+        return value
+
+    @field_validator(
+        "purchase_price",
+        "sale_price",
+    )
+    @classmethod
+    def validate_price(
+        cls,
+        value: Decimal | None,
+    ) -> Decimal | None:
+        if value is None:
+            return value
+
+        return validate_price_value(value)
 
     @field_validator("minimum_stock")
     @classmethod
-    def minimum_stock_must_be_non_negative(
+    def validate_minimum_stock(
         cls,
-        v: int | None,
+        value: int | None,
     ) -> int | None:
-        if v is not None and v < 0:
-            raise ValueError("Minimum stok negatif olamaz")
+        if value is None:
+            return value
 
-        return v
+        if value < 0:
+            raise ValueError(
+                "Minimum stok negatif olamaz"
+            )
+
+        return value
 
 
 class ProductResponse(BaseModel):

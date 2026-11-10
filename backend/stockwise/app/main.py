@@ -7,8 +7,11 @@ from stockwise.app.core.config import settings
 from stockwise.app.core.limiter import limiter
 from stockwise.app.api import health, ready
 from stockwise.app.api.auth import router as auth_router
+from stockwise.app.api.analytics.router import router as analytics_router
 from stockwise.app.api.business import router as business_router
+from stockwise.app.api.dashboard.router import router as dashboard_router
 from stockwise.app.api.products import router as products_router
+from stockwise.app.api.sales.router import router as sales_router
 from stockwise.app.api.stock_movements import router as stock_movements_router
 
 
@@ -19,6 +22,7 @@ def create_application() -> FastAPI:
     )
 
     application.state.limiter = limiter
+
     application.add_exception_handler(
         RateLimitExceeded,
         _rate_limit_exceeded_handler,
@@ -66,6 +70,24 @@ def create_application() -> FastAPI:
         stock_movements_router,
         prefix="/api",
         tags=["stock-movements"],
+    )
+
+    application.include_router(
+        sales_router,
+        prefix="/api",
+        tags=["sales"],
+    )
+
+    application.include_router(
+        analytics_router,
+        prefix="/api",
+        tags=["analytics"],
+    )
+
+    application.include_router(
+        dashboard_router,
+        prefix="/api",
+        tags=["dashboard"],
     )
 
     return application

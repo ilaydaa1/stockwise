@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from stockwise.app.api.stock_movements.schemas import (
     CreateStockMovementRequest,
-    MovementType,
+    ManualMovementType,
     StockMovementResponse,
 )
 from stockwise.app.core.deps import (
@@ -79,8 +79,8 @@ def create_stock_movement(
     stock_before = product.stock_quantity
 
     if body.movement_type in (
-        MovementType.IN,
-        MovementType.ADJUSTMENT_IN,
+        ManualMovementType.IN,
+        ManualMovementType.ADJUSTMENT_IN,
     ):
         stock_after = stock_before + body.quantity
 

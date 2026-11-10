@@ -33,7 +33,11 @@ def register(
 ) -> MessageResponse:
     normalized_email = body.email.strip().lower()
 
-    existing = db.query(User).filter(User.email == normalized_email).first()
+    existing = (
+        db.query(User)
+        .filter(User.email == normalized_email)
+        .first()
+    )
 
     if existing:
         raise HTTPException(
@@ -60,7 +64,9 @@ def register(
 
     db.refresh(user)
 
-    return MessageResponse(message="Kayıt başarılı")
+    return MessageResponse(
+        message="Kayıt başarılı",
+    )
 
 
 @router.post("/login", response_model=UserResponse)
@@ -95,7 +101,12 @@ def login(
             detail="Hesap devre dışı bırakılmış",
         )
 
-    create_session(response, db, user)
+    create_session(
+        response=response,
+        db=db,
+        user=user,
+        remember_me=body.remember_me,
+    )
 
     return UserResponse(
         id=str(user.id),
@@ -112,7 +123,11 @@ def logout(
     db: Session = Depends(get_db),
     _csrf: None = Depends(require_csrf),
 ) -> MessageResponse:
-    destroy_session(request, response, db)
+    destroy_session(
+        request=request,
+        response=response,
+        db=db,
+    )
 
     return MessageResponse(
         message="Çıkış yapıldı",

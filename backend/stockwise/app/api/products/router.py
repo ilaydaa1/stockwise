@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -149,7 +151,7 @@ def list_products(
     response_model=ProductResponse,
 )
 def get_product(
-    product_id: str,
+    product_id: UUID,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> ProductResponse:
@@ -189,7 +191,7 @@ def get_product(
     response_model=ProductResponse,
 )
 def update_product(
-    product_id: str,
+    product_id: UUID,
     body: UpdateProductRequest,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -266,7 +268,7 @@ def update_product(
     status_code=204,
 )
 def delete_product(
-    product_id: str,
+    product_id: UUID,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     _origin: None = Depends(require_trusted_origin),

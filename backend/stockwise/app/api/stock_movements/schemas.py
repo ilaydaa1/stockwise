@@ -5,16 +5,24 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 
-class MovementType(str, Enum):
+class ManualMovementType(str, Enum):
     IN = "IN"
     OUT = "OUT"
     ADJUSTMENT_IN = "ADJUSTMENT_IN"
     ADJUSTMENT_OUT = "ADJUSTMENT_OUT"
 
 
+class MovementType(str, Enum):
+    IN = "IN"
+    OUT = "OUT"
+    ADJUSTMENT_IN = "ADJUSTMENT_IN"
+    ADJUSTMENT_OUT = "ADJUSTMENT_OUT"
+    SALE = "SALE"
+
+
 class CreateStockMovementRequest(BaseModel):
     product_id: UUID
-    movement_type: MovementType
+    movement_type: ManualMovementType
     quantity: int = Field(..., gt=0)
     note: Optional[str] = Field(
         default=None,

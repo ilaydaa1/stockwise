@@ -67,6 +67,12 @@ class Business(Base):
         cascade="all, delete-orphan",
     )
 
+    sales: Mapped[list["Sale"]] = relationship(
+        "Sale",
+        back_populates="business",
+        cascade="all, delete-orphan",
+    )
+
     __table_args__ = (
         UniqueConstraint(
             "owner_id",
