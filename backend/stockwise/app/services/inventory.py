@@ -87,6 +87,11 @@ def lock_products(
     exist, belong to another business, or (by default) are inactive
     are simply absent from the result.
     """
+    # The query below reloads the rows it locks. Sessions here do not
+    # autoflush, so write out pending changes first or the reload
+    # would silently discard them.
+    db.flush()
+
     query = db.query(Product).filter(
         Product.id.in_(list(product_ids)),
         Product.business_id == business_id,
