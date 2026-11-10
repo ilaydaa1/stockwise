@@ -7,6 +7,7 @@ from stockwise.app.models.product import Product
 from stockwise.app.models.stock_movement import StockMovement
 from stockwise.app.models.sale import Sale
 from stockwise.app.models.sale_item import SaleItem
+from stockwise.app.models.sale_return import SaleReturn
 
 __all__ = [
     "User",
@@ -18,4 +19,5 @@ __all__ = [
     "StockMovement",
     "Sale",
     "SaleItem",
+    "SaleReturn",
 ]

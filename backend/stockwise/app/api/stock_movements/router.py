@@ -47,6 +47,7 @@ def _movement_to_response(
             else None
         ),
         sale_id=movement.sale_id,
+        sale_return_id=movement.sale_return_id,
         note=movement.note,
         created_at=movement.created_at.isoformat(),
     )

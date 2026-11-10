@@ -1,12 +1,17 @@
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from stockwise.app.api.sales.schemas import (
+    CreateReturnRequest,
     CreateSaleRequest,
     SaleItemResponse,
     SaleResponse,
+    SaleReturnResponse,
 )
 from stockwise.app.core.deps import (
+    get_current_business,
     get_current_user,
     require_csrf,
     require_trusted_origin,
@@ -14,8 +19,17 @@ from stockwise.app.core.deps import (
 from stockwise.app.db.session import get_db
 from stockwise.app.models.business import Business
 from stockwise.app.models.sale import Sale
+from stockwise.app.models.sale_item import SaleItem
+from stockwise.app.models.sale_return import SaleReturn
 from stockwise.app.models.user import User
 from stockwise.app.services.inventory import InsufficientStockError
+from stockwise.app.services.returns import (
+    DuplicateReturnLineError,
+    ReturnExceedsSoldError,
+    SaleItemNotFoundError,
+    SaleNotFoundError,
+    create_return,
+)
 from stockwise.app.services.sales import (
     DuplicateProductError,
     ProductNotFoundError,
@@ -142,3 +156,123 @@ def create_sale(
     db.refresh(sale)
 
     return _sale_to_response(sale, product_order)
+
+
+def _return_to_response(
+    sale_return: SaleReturn,
+    sale_id: UUID,
+) -> SaleReturnResponse:
+    return SaleReturnResponse(
+        id=sale_return.id,
+        sale_id=sale_id,
+        sale_item_id=sale_return.sale_item_id,
+        product_id=sale_return.sale_item.product_id,
+        quantity=sale_return.quantity,
+        refund_amount=str(sale_return.refund_amount),
+        cost_amount=str(sale_return.cost_amount),
+        reason=sale_return.reason,
+        created_at=sale_return.created_at.isoformat(),
+    )
+
+
+@router.post(
+    "/{sale_id}/returns",
+    response_model=list[SaleReturnResponse],
+    status_code=201,
+)
+def create_sale_return(
+    sale_id: UUID,
+    body: CreateReturnRequest,
+    _origin: None = Depends(require_trusted_origin),
+    _csrf: None = Depends(require_csrf),
+    business: Business = Depends(get_current_business),
+    db: Session = Depends(get_db),
+) -> list[SaleReturnResponse]:
+    try:
+        sale_returns = create_return(
+            db,
+            business_id=business.id,
+            sale_id=sale_id,
+            lines=[
+                (item.sale_item_id, item.quantity)
+                for item in body.items
+            ],
+            reason=body.reason,
+        )
+
+        db.commit()
+
+    except SaleNotFoundError:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=404,
+            detail="SALE_NOT_FOUND",
+        )
+
+    except SaleItemNotFoundError:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=404,
+            detail="SALE_ITEM_NOT_FOUND",
+        )
+
+    except DuplicateReturnLineError:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=400,
+            detail="DUPLICATE_SALE_ITEM",
+        )
+
+    except ReturnExceedsSoldError:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=400,
+            detail="RETURN_EXCEEDS_SOLD",
+        )
+
+    return [
+        _return_to_response(sale_return, sale_id)
+        for sale_return in sale_returns
+    ]
+
+
+@router.get(
+    "/{sale_id}/returns",
+    response_model=list[SaleReturnResponse],
+)
+def list_sale_returns(
+    sale_id: UUID,
+    business: Business = Depends(get_current_business),
+    db: Session = Depends(get_db),
+) -> list[SaleReturnResponse]:
+    sale = (
+        db.query(Sale.id)
+        .filter(
+            Sale.id == sale_id,
+            Sale.business_id == business.id,
+        )
+        .first()
+    )
+
+    if not sale:
+        raise HTTPException(
+            status_code=404,
+            detail="SALE_NOT_FOUND",
+        )
+
+    sale_returns = (
+        db.query(SaleReturn)
+        .join(SaleItem, SaleItem.id == SaleReturn.sale_item_id)
+        .filter(SaleItem.sale_id == sale_id)
+        .order_by(SaleReturn.created_at.asc(), SaleReturn.id.asc())
+        .all()
+    )
+
+    return [
+        _return_to_response(sale_return, sale_id)
+        for sale_return in sale_returns
+    ]

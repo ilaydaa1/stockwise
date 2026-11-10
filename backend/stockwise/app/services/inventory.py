@@ -105,6 +105,7 @@ def apply_stock_change(
     quantity: int,
     unit_cost: Decimal | None = None,
     sale_id: UUID | None = None,
+    sale_return_id: UUID | None = None,
     note: str | None = None,
     at: datetime | None = None,
 ) -> StockMovement:
@@ -191,6 +192,7 @@ def apply_stock_change(
         stock_after=stock_after,
         unit_cost=movement_cost,
         sale_id=sale_id,
+        sale_return_id=sale_return_id,
         note=note,
     )
 

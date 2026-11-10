@@ -15,6 +15,34 @@ class CreateSaleRequest(BaseModel):
     )
 
 
+class CreateReturnLineRequest(BaseModel):
+    sale_item_id: UUID
+    quantity: int = Field(..., gt=0)
+
+
+class CreateReturnRequest(BaseModel):
+    items: list[CreateReturnLineRequest] = Field(
+        ...,
+        min_length=1,
+    )
+    reason: str | None = Field(
+        default=None,
+        max_length=255,
+    )
+
+
+class SaleReturnResponse(BaseModel):
+    id: UUID
+    sale_id: UUID
+    sale_item_id: UUID
+    product_id: UUID
+    quantity: int
+    refund_amount: str
+    cost_amount: str
+    reason: str | None
+    created_at: str
+
+
 class SaleItemResponse(BaseModel):
     id: UUID
     product_id: UUID

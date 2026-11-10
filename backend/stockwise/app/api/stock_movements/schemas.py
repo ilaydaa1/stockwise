@@ -71,5 +71,6 @@ class StockMovementResponse(BaseModel):
     stock_after: int
     unit_cost: Optional[str] = None
     sale_id: Optional[UUID] = None
+    sale_return_id: Optional[UUID] = None
     note: Optional[str] = None
     created_at: str

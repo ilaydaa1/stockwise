@@ -70,6 +70,12 @@ class StockMovement(Base):
         nullable=True,
     )
 
+    # Set on RETURN movements.
+    sale_return_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("sale_returns.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
     note: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True,
@@ -107,6 +113,10 @@ class StockMovement(Base):
         Index(
             "ix_stock_movements_sale_id",
             "sale_id",
+        ),
+        Index(
+            "ix_stock_movements_sale_return_id",
+            "sale_return_id",
         ),
     )
 
