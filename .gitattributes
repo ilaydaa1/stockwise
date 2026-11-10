@@ -1,2 +1,5 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Generated dataset: keep LF so regenerated files compare equal on every OS
+data/synthetic/** text eol=lf
