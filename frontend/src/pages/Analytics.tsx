@@ -403,22 +403,10 @@ export default function Analytics() {
         return []
       }
 
-      const minimumStockByProduct =
-        new Map(
-          data.product_performance.map(
-            (product) => [
-              product.product_id,
-              0,
-            ]
-          )
-        )
-
       return productData.products
         .map((product) => {
           const minimumStock =
-            minimumStockByProduct.get(
-              product.product_id
-            ) || 0
+            product.minimum_stock
 
           const status =
             getStockStatus(

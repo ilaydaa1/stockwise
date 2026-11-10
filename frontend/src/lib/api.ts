@@ -353,6 +353,7 @@ export interface StockMovement {
   stock_after: number
   unit_cost: string | null
   sale_id: string | null
+  sale_return_id: string | null
   note: string | null
   created_at: string
 }
@@ -555,6 +556,7 @@ export interface ProductAnalysis {
   product_name: string
   product_sku: string
   observation_days: number
+  minimum_stock: number
   metrics: ProductAnalysisMetrics
 }
 

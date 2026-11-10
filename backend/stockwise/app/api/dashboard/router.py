@@ -17,6 +17,12 @@ from stockwise.app.models.business import Business
 from stockwise.app.models.product import Product
 from stockwise.app.models.sale import Sale
 from stockwise.app.models.user import User
+from stockwise.app.services.periods import (
+    business_timezone,
+    local_date,
+    period_start_date,
+    start_of_local_day,
+)
 
 
 router = APIRouter(
@@ -47,14 +53,11 @@ def get_dashboard_summary(
 
     # Dashboard şu an son 15 günü gösterir.
     # Bugün dahil olmak üzere 15 günlük aralık oluşturuyoruz.
+    # Days are calendar days where the business is, not UTC days.
+    tz = business_timezone(business.timezone)
     now = datetime.now(timezone.utc)
-    start_date = now.date() - timedelta(days=14)
-
-    start_datetime = datetime.combine(
-        start_date,
-        datetime.min.time(),
-        tzinfo=timezone.utc,
-    )
+    start_date = period_start_date(now, tz, 15)
+    start_datetime = start_of_local_day(start_date, tz)
 
     sales = (
         db.query(Sale)
@@ -104,7 +107,7 @@ def get_dashboard_summary(
     )
 
     for sale in sales:
-        sale_date = sale.created_at.date()
+        sale_date = local_date(sale.created_at, tz)
 
         daily_totals[sale_date]["sales"] += Decimal(
             sale.total_amount

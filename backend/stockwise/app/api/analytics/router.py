@@ -24,6 +24,12 @@ from stockwise.app.models.user import User
 from stockwise.app.services.product_analysis import (
     get_product_performance,
 )
+from stockwise.app.services.periods import (
+    business_timezone,
+    local_date,
+    period_start_date,
+    start_of_local_day,
+)
 
 
 router = APIRouter(
@@ -72,18 +78,11 @@ def get_analytics_summary(
         db=db,
     )
 
+    # Days are calendar days where the business is, not UTC days.
+    tz = business_timezone(business.timezone)
     now = datetime.now(timezone.utc)
-
-    start_date = (
-        now.date()
-        - timedelta(days=days - 1)
-    )
-
-    start_datetime = datetime.combine(
-        start_date,
-        datetime.min.time(),
-        tzinfo=timezone.utc,
-    )
+    start_date = period_start_date(now, tz, days)
+    start_datetime = start_of_local_day(start_date, tz)
 
     sales = (
         db.query(Sale)
@@ -166,9 +165,7 @@ def get_analytics_summary(
     )
 
     for sale in sales:
-        sale_date = (
-            sale.created_at.date()
-        )
+        sale_date = local_date(sale.created_at, tz)
 
         daily_totals[
             sale_date
@@ -445,6 +442,7 @@ def get_product_analysis(
         db=db,
         business_id=business.id,
         period_days=days,
+        tz=business_timezone(business.timezone),
     )
 
     products = [
@@ -457,6 +455,7 @@ def get_product_analysis(
             observation_days=(
                 result.observation_days
             ),
+            minimum_stock=result.minimum_stock,
             metrics=ProductAnalysisMetricsResponse(
                 period_days=(
                     result.metrics.period_days

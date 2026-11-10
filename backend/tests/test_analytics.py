@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from decimal import Decimal
 
 from fastapi import Response
@@ -617,10 +618,16 @@ def test_analytics_daily_performance(
         == "30.00"
     )
 
-    today = now.date().isoformat()
+    # Days are reported in the business's timezone (the default,
+    # Europe/Istanbul), which can differ from the UTC date.
+    local_today = now.astimezone(
+        ZoneInfo(business.timezone)
+    ).date()
+
+    today = local_today.isoformat()
 
     yesterday = (
-        now.date()
+        local_today
         - timedelta(days=1)
     ).isoformat()
 

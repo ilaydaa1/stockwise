@@ -34,6 +34,7 @@ class ProductAnalysisResponse(BaseModel):
     product_name: str
     product_sku: str
     observation_days: int
+    minimum_stock: int
     metrics: ProductAnalysisMetricsResponse
 
 

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, tzinfo
 from decimal import Decimal, ROUND_HALF_UP
 from uuid import UUID
 
@@ -34,6 +34,7 @@ class ProductAnalysisResult:
     product_sku: str
     observation_days: int
     metrics: ProductPerformanceMetrics
+    minimum_stock: int = 0
 
 
 def _round_decimal(
@@ -219,6 +220,7 @@ def _calculate_observation_days(
     period_start: datetime,
     now: datetime,
     period_days: int,
+    tz: tzinfo = timezone.utc,
 ) -> int:
     product_created_at_utc = (
         _ensure_utc(
@@ -245,8 +247,8 @@ def _calculate_observation_days(
         return 0
 
     observed_days = (
-        now_utc.date()
-        - observation_start.date()
+        now_utc.astimezone(tz).date()
+        - observation_start.astimezone(tz).date()
     ).days + 1
 
     return min(
@@ -294,6 +296,7 @@ def get_product_performance(
     business_id: UUID,
     period_days: int = 30,
     now: datetime | None = None,
+    tz: tzinfo = timezone.utc,
 ) -> list[ProductAnalysisResult]:
     if period_days <= 0:
         raise ValueError(
@@ -308,8 +311,10 @@ def get_product_performance(
         )
     )
 
+    # The period is made of calendar days in ``tz`` (the business's
+    # timezone); its start is converted back to UTC for querying.
     current_period_start_date = (
-        analysis_now.date()
+        analysis_now.astimezone(tz).date()
         - timedelta(
             days=period_days - 1
         )
@@ -319,8 +324,8 @@ def get_product_performance(
         datetime.combine(
             current_period_start_date,
             datetime.min.time(),
-            tzinfo=timezone.utc,
-        )
+            tzinfo=tz,
+        ).astimezone(timezone.utc)
     )
 
     previous_period_start = (
@@ -437,6 +442,7 @@ def get_product_performance(
                 ),
                 now=analysis_now,
                 period_days=period_days,
+                tz=tz,
             )
         )
 
@@ -467,6 +473,7 @@ def get_product_performance(
                     observation_days
                 ),
                 metrics=metrics,
+                minimum_stock=product.minimum_stock,
             )
         )
 
