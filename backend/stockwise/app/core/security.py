@@ -3,7 +3,11 @@ import secrets
 import string
 
 from argon2 import PasswordHasher
-from argon2.exceptions import VerifyMismatchError
+from argon2.exceptions import (
+    InvalidHashError,
+    VerificationError,
+    VerifyMismatchError,
+)
 
 _ph = PasswordHasher(
     time_cost=3,
@@ -21,7 +25,10 @@ def hash_password(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     try:
         return _ph.verify(hashed_password, plain_password)
-    except VerifyMismatchError:
+    except (VerifyMismatchError, VerificationError, InvalidHashError):
+        # A stored value that is not a valid hash (for example the
+        # placeholder on an account with login disabled) is a failed
+        # login, not a server error.
         return False
 
 
