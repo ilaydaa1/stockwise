@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 
 from stockwise.app.api.stock_movements.schemas import (
     CreateStockMovementRequest,
-    ManualMovementType,
     StockMovementResponse,
 )
 from stockwise.app.core.deps import (
@@ -16,9 +15,13 @@ from stockwise.app.core.deps import (
 )
 from stockwise.app.db.session import get_db
 from stockwise.app.models.business import Business
-from stockwise.app.models.product import Product
 from stockwise.app.models.stock_movement import StockMovement
 from stockwise.app.models.user import User
+from stockwise.app.services.inventory import (
+    InsufficientStockError,
+    apply_stock_change,
+    lock_products,
+)
 
 
 router = APIRouter(
@@ -51,24 +54,11 @@ def create_stock_movement(
             detail="BUSINESS_NOT_FOUND",
         )
 
-    try:
-        product_uuid = UUID(str(body.product_id))
-    except (ValueError, TypeError):
-        raise HTTPException(
-            status_code=422,
-            detail="INVALID_PRODUCT_ID",
-        )
-
-    product = (
-        db.query(Product)
-        .filter(
-            Product.id == product_uuid,
-            Product.business_id == business.id,
-            Product.is_active.is_(True),
-        )
-        .with_for_update()
-        .first()
-    )
+    product = lock_products(
+        db,
+        business_id=business.id,
+        product_ids=[body.product_id],
+    ).get(body.product_id)
 
     if not product:
         raise HTTPException(
@@ -76,39 +66,25 @@ def create_stock_movement(
             detail="PRODUCT_NOT_FOUND",
         )
 
-    stock_before = product.stock_quantity
-
-    if body.movement_type in (
-        ManualMovementType.IN,
-        ManualMovementType.ADJUSTMENT_IN,
-    ):
-        stock_after = stock_before + body.quantity
-
-    else:
-        if stock_before < body.quantity:
-            raise HTTPException(
-                status_code=400,
-                detail="INSUFFICIENT_STOCK",
-            )
-
-        stock_after = stock_before - body.quantity
-
-    product.stock_quantity = stock_after
-
-    movement = StockMovement(
-        business_id=business.id,
-        product_id=product.id,
-        movement_type=body.movement_type.value,
-        quantity=body.quantity,
-        stock_before=stock_before,
-        stock_after=stock_after,
-        note=body.note,
-    )
-
-    db.add(movement)
-
     try:
+        movement = apply_stock_change(
+            db,
+            product=product,
+            movement_type=body.movement_type.value,
+            quantity=body.quantity,
+            note=body.note,
+        )
+
         db.commit()
+
+    except InsufficientStockError:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=400,
+            detail="INSUFFICIENT_STOCK",
+        )
+
     except Exception:
         db.rollback()
 
