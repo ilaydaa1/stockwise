@@ -33,6 +33,7 @@ from stockwise.app.services.returns import (
 from stockwise.app.services.sales import (
     DuplicateProductError,
     ProductNotFoundError,
+    SaleTotalTooLargeError,
     create_sale as create_sale_record,
 )
 
@@ -143,6 +144,14 @@ def create_sale(
         raise HTTPException(
             status_code=400,
             detail="INSUFFICIENT_STOCK",
+        )
+
+    except SaleTotalTooLargeError:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=400,
+            detail="SALE_TOTAL_TOO_LARGE",
         )
 
     except Exception:

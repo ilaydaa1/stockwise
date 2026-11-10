@@ -4,6 +4,7 @@ from decimal import Decimal
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     ForeignKeyConstraint,
@@ -129,6 +130,19 @@ class Product(Base):
             "business_id",
             "sku",
             name="uq_products_business_sku",
+        ),
+        CheckConstraint(
+            "stock_quantity >= 0",
+            name="ck_products_stock_quantity_non_negative",
+        ),
+        CheckConstraint(
+            "minimum_stock >= 0",
+            name="ck_products_minimum_stock_non_negative",
+        ),
+        CheckConstraint(
+            "purchase_price >= 0 AND sale_price >= 0 "
+            "AND average_cost >= 0",
+            name="ck_products_prices_non_negative",
         ),
         ForeignKeyConstraint(
             ["business_id", "category_id"],

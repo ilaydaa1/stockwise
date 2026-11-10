@@ -41,8 +41,17 @@ COST_PRECISION = Decimal("0.0001")
 PRICE_PRECISION = Decimal("0.01")
 
 
+# Stock accumulates across movements, so each movement being bounded
+# is not enough. This keeps the level inside the integer column.
+MAX_STOCK_LEVEL = 1_000_000_000
+
+
 class InsufficientStockError(Exception):
     """An outbound movement asked for more units than are on hand."""
+
+
+class StockLimitExceededError(Exception):
+    """An inbound movement would push stock past MAX_STOCK_LEVEL."""
 
 
 def weighted_average_cost(
@@ -156,6 +165,12 @@ def apply_stock_change(
 
     else:
         stock_after = stock_before + quantity
+
+        if stock_after > MAX_STOCK_LEVEL:
+            raise StockLimitExceededError(
+                f"product {product.id}: {stock_after} exceeds "
+                f"{MAX_STOCK_LEVEL}"
+            )
 
         if movement_type in _COSTED_INBOUND_TYPES:
             movement_cost = (

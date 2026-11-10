@@ -49,6 +49,8 @@ def validate_price_value(value: Decimal) -> Decimal:
     return value
 
 
+MAX_STOCK_VALUE = 1_000_000
+
 NULLABLE_UPDATE_FIELDS = {"category_id", "supplier_id"}
 
 
@@ -121,6 +123,11 @@ class CreateProductRequest(BaseModel):
         if value < 0:
             raise ValueError(
                 "Stok değeri negatif olamaz"
+            )
+
+        if value > MAX_STOCK_VALUE:
+            raise ValueError(
+                "Stok değeri çok büyük"
             )
 
         return value
@@ -224,6 +231,11 @@ class UpdateProductRequest(BaseModel):
         if value < 0:
             raise ValueError(
                 "Minimum stok negatif olamaz"
+            )
+
+        if value > MAX_STOCK_VALUE:
+            raise ValueError(
+                "Minimum stok çok büyük"
             )
 
         return value

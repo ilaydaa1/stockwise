@@ -8,6 +8,11 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from stockwise.app.api.products.schemas import validate_price_value
 
 
+# Upper bound for a single movement or sale line. Keeps totals well
+# inside the integer and numeric column ranges.
+MAX_QUANTITY = 1_000_000
+
+
 class ManualMovementType(str, Enum):
     IN = "IN"
     OUT = "OUT"
@@ -28,7 +33,7 @@ class MovementType(str, Enum):
 class CreateStockMovementRequest(BaseModel):
     product_id: UUID
     movement_type: ManualMovementType
-    quantity: int = Field(..., gt=0)
+    quantity: int = Field(..., gt=0, le=MAX_QUANTITY)
     # Price paid per unit. Only meaningful for IN; when omitted the
     # current purchase price of the product is used.
     unit_cost: Optional[Decimal] = None

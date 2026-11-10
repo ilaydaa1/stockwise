@@ -19,6 +19,7 @@ from stockwise.app.models.stock_movement import StockMovement
 from stockwise.app.models.user import User
 from stockwise.app.services.inventory import (
     InsufficientStockError,
+    StockLimitExceededError,
     apply_stock_change,
     lock_products,
 )
@@ -107,6 +108,14 @@ def create_stock_movement(
         raise HTTPException(
             status_code=400,
             detail="INSUFFICIENT_STOCK",
+        )
+
+    except StockLimitExceededError:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=400,
+            detail="STOCK_LIMIT_EXCEEDED",
         )
 
     except Exception:

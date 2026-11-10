@@ -3,12 +3,14 @@ from datetime import datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy import (
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
     Integer,
     Numeric,
     String,
+    func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -68,6 +70,7 @@ class SaleReturn(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
         nullable=False,
     )
 
@@ -79,6 +82,14 @@ class SaleReturn(Base):
             "ix_sale_returns_business_created_at",
             "business_id",
             "created_at",
+        ),
+        CheckConstraint(
+            "quantity > 0",
+            name="ck_sale_returns_quantity_positive",
+        ),
+        CheckConstraint(
+            "refund_amount >= 0 AND cost_amount >= 0",
+            name="ck_sale_returns_amounts_non_negative",
         ),
     )
 

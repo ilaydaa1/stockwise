@@ -25,6 +25,14 @@ from stockwise.app.services.inventory import (
 )
 
 
+# Largest total that fits the Numeric(14, 2) columns on sales.
+MAX_SALE_TOTAL = Decimal("999999999999.99")
+
+
+class SaleTotalTooLargeError(Exception):
+    """The sale total does not fit the amount columns."""
+
+
 class DuplicateProductError(Exception):
     """The same product appears on more than one line."""
 
@@ -102,6 +110,9 @@ def create_sale(
                 cost,
             )
         )
+
+    if total_amount > MAX_SALE_TOTAL or total_cost > MAX_SALE_TOTAL:
+        raise SaleTotalTooLargeError()
 
     sale = Sale(
         business_id=business_id,

@@ -3,12 +3,14 @@ from datetime import datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy import (
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
     Integer,
     Numeric,
     String,
+    func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -84,6 +86,7 @@ class StockMovement(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
         nullable=False,
     )
 
@@ -102,9 +105,12 @@ class StockMovement(Base):
             "ix_stock_movements_business_id",
             "business_id",
         ),
+        # Serves both "movements of a product" and the ordered
+        # ledger walk used by the integrity checks.
         Index(
-            "ix_stock_movements_product_id",
+            "ix_stock_movements_product_created_at",
             "product_id",
+            "created_at",
         ),
         Index(
             "ix_stock_movements_created_at",
@@ -117,6 +123,32 @@ class StockMovement(Base):
         Index(
             "ix_stock_movements_sale_return_id",
             "sale_return_id",
+        ),
+        CheckConstraint(
+            "quantity > 0",
+            name="ck_stock_movements_quantity_positive",
+        ),
+        CheckConstraint(
+            "stock_before >= 0 AND stock_after >= 0",
+            name="ck_stock_movements_levels_non_negative",
+        ),
+        # Restricts the type to the known list and ties the levels
+        # to the quantity in the direction that type implies.
+        CheckConstraint(
+            "(movement_type IN ('IN', 'ADJUSTMENT_IN', 'OPENING', 'RETURN')"
+            " AND stock_after = stock_before + quantity)"
+            " OR "
+            "(movement_type IN ('OUT', 'ADJUSTMENT_OUT', 'SALE')"
+            " AND stock_after = stock_before - quantity)",
+            name="ck_stock_movements_type_matches_levels",
+        ),
+        CheckConstraint(
+            "unit_cost IS NULL OR unit_cost >= 0",
+            name="ck_stock_movements_unit_cost_non_negative",
+        ),
+        CheckConstraint(
+            "movement_type <> 'IN' OR unit_cost IS NOT NULL",
+            name="ck_stock_movements_stock_in_has_unit_cost",
         ),
     )
 

@@ -2,10 +2,12 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from stockwise.app.api.stock_movements.schemas import MAX_QUANTITY
+
 
 class CreateSaleItemRequest(BaseModel):
     product_id: UUID
-    quantity: int = Field(..., gt=0)
+    quantity: int = Field(..., gt=0, le=MAX_QUANTITY)
 
 
 class CreateSaleRequest(BaseModel):
@@ -17,7 +19,7 @@ class CreateSaleRequest(BaseModel):
 
 class CreateReturnLineRequest(BaseModel):
     sale_item_id: UUID
-    quantity: int = Field(..., gt=0)
+    quantity: int = Field(..., gt=0, le=MAX_QUANTITY)
 
 
 class CreateReturnRequest(BaseModel):

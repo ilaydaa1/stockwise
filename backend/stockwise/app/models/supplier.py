@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import (
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Integer,
@@ -50,6 +51,10 @@ class Supplier(Base):
             "business_id",
             "name",
             name="uq_suppliers_business_name",
+        ),
+        CheckConstraint(
+            "lead_time_days >= 0 AND lead_time_days <= 365",
+            name="ck_suppliers_lead_time_days_range",
         ),
         # Target of the composite foreign key on products.
         UniqueConstraint(
