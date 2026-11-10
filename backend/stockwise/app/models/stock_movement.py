@@ -1,11 +1,13 @@
 import uuid
 from datetime import datetime, timezone
+from decimal import Decimal
 
 from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     String,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -52,6 +54,22 @@ class StockMovement(Base):
         nullable=False,
     )
 
+    # Cost per unit used to value this movement. For IN it is the
+    # price paid; for every other type it is the cost the units
+    # carried (see docs/costing.md). Null only on rows that predate
+    # cost tracking and could not be backfilled.
+    unit_cost: Mapped[Decimal | None] = mapped_column(
+        Numeric(14, 4),
+        nullable=True,
+    )
+
+    # Set on SALE movements (and on RETURN movements, which point
+    # back at the original sale).
+    sale_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("sales.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
     note: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True,
@@ -85,6 +103,10 @@ class StockMovement(Base):
         Index(
             "ix_stock_movements_created_at",
             "created_at",
+        ),
+        Index(
+            "ix_stock_movements_sale_id",
+            "sale_id",
         ),
     )
 

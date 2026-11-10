@@ -239,10 +239,13 @@ export async function getMyBusiness(): Promise<
 export interface Product {
   id: string
   business_id: string
+  category_id: string | null
+  supplier_id: string | null
   name: string
   sku: string
   purchase_price: string
   sale_price: string
+  average_cost: string
   stock_quantity: number
   minimum_stock: number
   is_active: boolean
@@ -336,6 +339,8 @@ export type ManualMovementType =
 export type MovementType =
   | ManualMovementType
   | 'SALE'
+  | 'OPENING'
+  | 'RETURN'
 
 
 export interface StockMovement {
@@ -346,6 +351,8 @@ export interface StockMovement {
   quantity: number
   stock_before: number
   stock_after: number
+  unit_cost: string | null
+  sale_id: string | null
   note: string | null
   created_at: string
 }
@@ -355,6 +362,7 @@ export interface CreateStockMovementPayload {
   product_id: string
   movement_type: ManualMovementType
   quantity: number
+  unit_cost?: string
   note?: string
 }
 

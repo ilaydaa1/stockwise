@@ -19,6 +19,12 @@ from stockwise.app.db.base import Base
 from stockwise.app.db.ids import new_uuid
 
 
+def _initial_average_cost(context) -> Decimal:
+    # A new product has no purchase history yet, so its average
+    # cost starts at the purchase price it was created with.
+    return context.get_current_parameters()["purchase_price"]
+
+
 class Product(Base):
     __tablename__ = "products"
 
@@ -60,6 +66,15 @@ class Product(Base):
     sale_price: Mapped[Decimal] = mapped_column(
         Numeric(12, 2),
         nullable=False,
+    )
+
+    # Moving weighted average cost of the units currently in stock.
+    # Maintained by services.inventory; never edited directly.
+    # purchase_price above is the latest price paid to the supplier.
+    average_cost: Mapped[Decimal] = mapped_column(
+        Numeric(14, 4),
+        nullable=False,
+        default=_initial_average_cost,
     )
 
     stock_quantity: Mapped[int] = mapped_column(

@@ -20,6 +20,7 @@ from stockwise.app.models.category import Category
 from stockwise.app.models.product import Product
 from stockwise.app.models.supplier import Supplier
 from stockwise.app.models.user import User
+from stockwise.app.services.inventory import apply_stock_change
 
 
 router = APIRouter(
@@ -48,6 +49,7 @@ def _product_to_response(
         sku=product.sku,
         purchase_price=product.purchase_price,
         sale_price=product.sale_price,
+        average_cost=product.average_cost,
         stock_quantity=product.stock_quantity,
         minimum_stock=product.minimum_stock,
         is_active=product.is_active,
@@ -151,13 +153,28 @@ def create_product(
         sku=body.sku,
         purchase_price=body.purchase_price,
         sale_price=body.sale_price,
-        stock_quantity=body.stock_quantity,
+        average_cost=body.purchase_price,
+        stock_quantity=0,
         minimum_stock=body.minimum_stock,
     )
 
     db.add(product)
 
     try:
+        db.flush()
+
+        # Opening stock enters through the ledger like any other
+        # change, so movements always add up to the stock level.
+        if body.stock_quantity > 0:
+            apply_stock_change(
+                db,
+                product=product,
+                movement_type="OPENING",
+                quantity=body.stock_quantity,
+                unit_cost=body.purchase_price,
+                note="Açılış stoku",
+            )
+
         db.commit()
     except IntegrityError:
         db.rollback()

@@ -238,6 +238,7 @@ class ProductResponse(BaseModel):
     sku: str
     purchase_price: Decimal
     sale_price: Decimal
+    average_cost: Decimal
     stock_quantity: int
     minimum_stock: int
     is_active: bool

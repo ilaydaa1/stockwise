@@ -10,7 +10,7 @@ alter historical revenue or profit.
 transaction.
 """
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Sequence
 from uuid import UUID
 
@@ -79,7 +79,12 @@ def create_sale(
         product = products[product_id]
 
         unit_sale_price = Decimal(product.sale_price)
-        unit_purchase_price = Decimal(product.purchase_price)
+        # Cost of goods sold uses the moving weighted average cost
+        # at the moment of sale, frozen on the sale item.
+        unit_purchase_price = Decimal(product.average_cost).quantize(
+            Decimal("0.01"),
+            rounding=ROUND_HALF_UP,
+        )
 
         subtotal = unit_sale_price * quantity
         cost = unit_purchase_price * quantity
@@ -139,6 +144,7 @@ def create_sale(
             product=product,
             movement_type="SALE",
             quantity=quantity,
+            sale_id=sale.id,
             note=f"Sale {sale.id}",
             at=at,
         )

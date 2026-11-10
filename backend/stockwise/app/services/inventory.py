@@ -1,14 +1,26 @@
-"""Stock changes.
+"""Stock changes and inventory costing.
 
 Every change to ``Product.stock_quantity`` goes through
 ``apply_stock_change`` so that it is always paired with a
-``StockMovement`` row recording the level before and after.
+``StockMovement`` row recording the level before and after, and so
+that the product's moving weighted average cost stays correct.
+
+Costing rules (documented in docs/costing.md):
+
+* IN       units enter at the price paid; the average is recalculated.
+* OPENING  units enter at the product's purchase price.
+* RETURN   units re-enter at the cost they were sold at.
+* ADJUSTMENT_IN  found units enter at the current average, which
+                 therefore does not move.
+* OUT, ADJUSTMENT_OUT, SALE  units leave at the current average,
+                 which therefore does not move.
 
 Functions here never commit. The caller owns the transaction, which
 lets the API commit one request at a time and the data loader commit
 in batches.
 """
 from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Iterable
 from uuid import UUID
 
@@ -18,12 +30,38 @@ from stockwise.app.models.product import Product
 from stockwise.app.models.stock_movement import StockMovement
 
 
-INBOUND_TYPES = frozenset({"IN", "ADJUSTMENT_IN"})
+INBOUND_TYPES = frozenset({"IN", "ADJUSTMENT_IN", "OPENING", "RETURN"})
 OUTBOUND_TYPES = frozenset({"OUT", "ADJUSTMENT_OUT", "SALE"})
+
+# Movement types whose units arrive with their own cost and so
+# change the weighted average.
+_COSTED_INBOUND_TYPES = frozenset({"IN", "OPENING", "RETURN"})
+
+COST_PRECISION = Decimal("0.0001")
+PRICE_PRECISION = Decimal("0.01")
 
 
 class InsufficientStockError(Exception):
     """An outbound movement asked for more units than are on hand."""
+
+
+def weighted_average_cost(
+    *,
+    stock_before: int,
+    average_before: Decimal,
+    quantity: int,
+    unit_cost: Decimal,
+) -> Decimal:
+    """Average cost after ``quantity`` units arrive at ``unit_cost``."""
+    total_value = (
+        Decimal(stock_before) * average_before
+        + Decimal(quantity) * unit_cost
+    )
+
+    return (total_value / Decimal(stock_before + quantity)).quantize(
+        COST_PRECISION,
+        rounding=ROUND_HALF_UP,
+    )
 
 
 def lock_products(
@@ -65,23 +103,47 @@ def apply_stock_change(
     product: Product,
     movement_type: str,
     quantity: int,
+    unit_cost: Decimal | None = None,
+    sale_id: UUID | None = None,
     note: str | None = None,
     at: datetime | None = None,
 ) -> StockMovement:
     """Change a product's stock and record the movement.
 
     ``product`` must already be locked by the caller (see
-    ``lock_products``). ``at`` backdates the movement and is only
-    used by the historical data loader; the API never passes it.
+    ``lock_products``).
+
+    ``unit_cost`` is optional for IN and OPENING (defaulting to the
+    product's purchase price), required for RETURN, and not accepted
+    for any other type.
+
+    ``at`` backdates the movement and is only used by the historical
+    data loader; the API never passes it.
     """
     if quantity <= 0:
         raise ValueError("quantity must be greater than zero")
 
-    stock_before = product.stock_quantity
+    if movement_type not in INBOUND_TYPES | OUTBOUND_TYPES:
+        raise ValueError(f"unknown movement type: {movement_type}")
 
-    if movement_type in INBOUND_TYPES:
-        stock_after = stock_before + quantity
-    elif movement_type in OUTBOUND_TYPES:
+    if unit_cost is not None:
+        if movement_type not in _COSTED_INBOUND_TYPES:
+            raise ValueError(
+                f"unit_cost is not accepted for {movement_type}"
+            )
+
+        unit_cost = Decimal(unit_cost)
+
+        if unit_cost < 0:
+            raise ValueError("unit_cost cannot be negative")
+
+    elif movement_type == "RETURN":
+        raise ValueError("RETURN requires the original unit cost")
+
+    stock_before = product.stock_quantity
+    average_before = Decimal(product.average_cost)
+
+    if movement_type in OUTBOUND_TYPES:
         if stock_before < quantity:
             raise InsufficientStockError(
                 f"product {product.id}: have {stock_before}, "
@@ -89,8 +151,34 @@ def apply_stock_change(
             )
 
         stock_after = stock_before - quantity
+        movement_cost = average_before
+
     else:
-        raise ValueError(f"unknown movement type: {movement_type}")
+        stock_after = stock_before + quantity
+
+        if movement_type in _COSTED_INBOUND_TYPES:
+            movement_cost = (
+                unit_cost
+                if unit_cost is not None
+                else Decimal(product.purchase_price)
+            )
+
+            product.average_cost = weighted_average_cost(
+                stock_before=stock_before,
+                average_before=average_before,
+                quantity=quantity,
+                unit_cost=movement_cost,
+            )
+
+            if movement_type == "IN":
+                # Remember the latest price paid to the supplier.
+                product.purchase_price = movement_cost.quantize(
+                    PRICE_PRECISION,
+                    rounding=ROUND_HALF_UP,
+                )
+
+        else:
+            movement_cost = average_before
 
     product.stock_quantity = stock_after
 
@@ -101,6 +189,8 @@ def apply_stock_change(
         quantity=quantity,
         stock_before=stock_before,
         stock_after=stock_after,
+        unit_cost=movement_cost,
+        sale_id=sale_id,
         note=note,
     )
 

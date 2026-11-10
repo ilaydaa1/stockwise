@@ -30,6 +30,28 @@ router = APIRouter(
 )
 
 
+def _movement_to_response(
+    movement: StockMovement,
+) -> StockMovementResponse:
+    return StockMovementResponse(
+        id=str(movement.id),
+        business_id=str(movement.business_id),
+        product_id=str(movement.product_id),
+        movement_type=movement.movement_type,
+        quantity=movement.quantity,
+        stock_before=movement.stock_before,
+        stock_after=movement.stock_after,
+        unit_cost=(
+            str(movement.unit_cost)
+            if movement.unit_cost is not None
+            else None
+        ),
+        sale_id=movement.sale_id,
+        note=movement.note,
+        created_at=movement.created_at.isoformat(),
+    )
+
+
 @router.post(
     "",
     response_model=StockMovementResponse,
@@ -72,6 +94,7 @@ def create_stock_movement(
             product=product,
             movement_type=body.movement_type.value,
             quantity=body.quantity,
+            unit_cost=body.unit_cost,
             note=body.note,
         )
 
@@ -95,17 +118,7 @@ def create_stock_movement(
 
     db.refresh(movement)
 
-    return StockMovementResponse(
-        id=str(movement.id),
-        business_id=str(movement.business_id),
-        product_id=str(movement.product_id),
-        movement_type=movement.movement_type,
-        quantity=movement.quantity,
-        stock_before=movement.stock_before,
-        stock_after=movement.stock_after,
-        note=movement.note,
-        created_at=movement.created_at.isoformat(),
-    )
+    return _movement_to_response(movement)
 
 
 @router.get(
@@ -153,16 +166,6 @@ def list_stock_movements(
     )
 
     return [
-        StockMovementResponse(
-            id=str(movement.id),
-            business_id=str(movement.business_id),
-            product_id=str(movement.product_id),
-            movement_type=movement.movement_type,
-            quantity=movement.quantity,
-            stock_before=movement.stock_before,
-            stock_after=movement.stock_after,
-            note=movement.note,
-            created_at=movement.created_at.isoformat(),
-        )
+        _movement_to_response(movement)
         for movement in movements
     ]

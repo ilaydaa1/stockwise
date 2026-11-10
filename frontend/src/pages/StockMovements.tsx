@@ -100,6 +100,8 @@ const movementLabels: Record<MovementType, string> = {
   ADJUSTMENT_IN: 'Sayım Fazlası',
   ADJUSTMENT_OUT: 'Sayım Eksiği',
   SALE: 'Satış',
+  OPENING: 'Açılış Stoku',
+  RETURN: 'İade',
 }
 
 
@@ -108,7 +110,9 @@ function isIncomingMovement(
 ) {
   return (
     movementType === 'IN' ||
-    movementType === 'ADJUSTMENT_IN'
+    movementType === 'ADJUSTMENT_IN' ||
+    movementType === 'OPENING' ||
+    movementType === 'RETURN'
   )
 }
 
