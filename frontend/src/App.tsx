@@ -12,6 +12,8 @@ import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import Products from './pages/Products'
 import StockMovements from './pages/StockMovements'
+import Sales from './pages/Sales'
+import Analytics from './pages/Analytics'
 import Onboarding from './pages/Onboarding'
 
 
@@ -245,6 +247,16 @@ function AppRoutes() {
         <Route
           path="stock-movements"
           element={<StockMovements />}
+        />
+
+        <Route
+          path="sales"
+          element={<Sales />}
+        />
+
+        <Route
+          path="analytics"
+          element={<Analytics />}
         />
       </Route>
 

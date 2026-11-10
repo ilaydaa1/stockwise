@@ -1,4 +1,17 @@
-import { type CSSProperties } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+} from 'react'
+import { useNavigate } from 'react-router-dom'
+
+import { useBusiness } from '../contexts/BusinessContext'
+import {
+  getDashboardSummary,
+  type DashboardSummary,
+  type DailyPerformance,
+} from '../lib/api'
 
 import './dashboard.css'
 
@@ -10,6 +23,7 @@ type IconName =
   | 'chart'
   | 'spark'
   | 'calendar'
+  | 'refresh'
 
 
 const iconPaths: Record<IconName, string> = {
@@ -30,6 +44,9 @@ const iconPaths: Record<IconName, string> = {
 
   calendar:
     'M4 5h16v16H4V5ZM8 3v4M16 3v4M4 10h16',
+
+  refresh:
+    'M20 6v5h-5M4 18v-5h5M18.5 9A7 7 0 0 0 6.3 6.3L4 9M5.5 15A7 7 0 0 0 17.7 17.7L20 15',
 }
 
 
@@ -58,125 +75,88 @@ function Icon({
 }
 
 
-// Illustrative data; these values do not come from the business API.
-const demoSales = [
-  5000,
-  4900,
-  5100,
-  5800,
-  10200,
-  9800,
-  9100,
-  8600,
-  11800,
-  13700,
-  8000,
-  11200,
-  7900,
-  8200,
-  10900,
-]
+function formatDateLabel(dateString: string) {
+  const date = new Date(
+    `${dateString}T00:00:00`
+  )
+
+  return new Intl.DateTimeFormat(
+    'tr-TR',
+    {
+      day: 'numeric',
+      month: 'short',
+    }
+  ).format(date)
+}
 
 
-const demoProfit = demoSales.map(
-  (amount) => amount * 0.3
-)
+function formatLongDate(dateString: string) {
+  const date = new Date(
+    `${dateString}T00:00:00`
+  )
+
+  return new Intl.DateTimeFormat(
+    'tr-TR',
+    {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }
+  ).format(date)
+}
 
 
-const totalSales = demoSales.reduce(
-  (sum, amount) => sum + amount,
-  0
-)
-
-
-const totalProfit = demoProfit.reduce(
-  (sum, amount) => sum + amount,
-  0
-)
-
-
-const demoProducts = [
-  {
-    name: 'Kablosuz Kulaklık Pro',
-    sku: 'ELK-001',
-    stock: 2,
-    minimum: 10,
-    status: 'Kritik',
-    color: '#e8edf5',
-    icon: 'box' as IconName,
-  },
-  {
-    name: 'Filtre Kahve 250 g',
-    sku: 'GDA-012',
-    stock: 3,
-    minimum: 12,
-    status: 'Kritik',
-    color: '#f3e9dd',
-    icon: 'box' as IconName,
-  },
-  {
-    name: 'Seramik Kupa',
-    sku: 'EV-024',
-    stock: 5,
-    minimum: 15,
-    status: 'Düşük',
-    color: '#e6eef1',
-    icon: 'box' as IconName,
-  },
-  {
-    name: 'Telefon Kılıfı',
-    sku: 'ELK-038',
-    stock: 6,
-    minimum: 20,
-    status: 'Düşük',
-    color: '#ece8f5',
-    icon: 'box' as IconName,
-  },
-  {
-    name: 'Defter A5 Çizgili',
-    sku: 'KRT-007',
-    stock: 7,
-    minimum: 20,
-    status: 'Düşük',
-    color: '#e5efe8',
-    icon: 'box' as IconName,
-  },
-]
-
-
-const money = new Intl.NumberFormat(
-  'tr-TR',
-  {
-    style: 'currency',
-    currency: 'TRY',
-    maximumFractionDigits: 0,
-  }
-)
-
-
-function SalesChart() {
+function SalesChart({
+  data,
+  money,
+}: {
+  data: DailyPerformance[]
+  money: Intl.NumberFormat
+}) {
   const width = 640
   const height = 280
 
-  const left = 52
+  const left = 58
   const right = 18
   const top = 20
-  const bottom = 40
+  const bottom = 42
 
-  const maximum = 15000
+  const salesValues = data.map(
+    (item) => Number(item.sales)
+  )
 
+  const profitValues = data.map(
+    (item) => Number(item.gross_profit)
+  )
 
-  const x = (index: number) =>
-    left +
-    (index / (demoSales.length - 1)) *
-      (width - left - right)
+  const highestValue = Math.max(
+    ...salesValues,
+    ...profitValues,
+    1
+  )
 
+  const maximum =
+    highestValue <= 100
+      ? Math.ceil(highestValue / 10) * 10 ||
+        10
+      : Math.ceil(highestValue / 100) * 100
+
+  const x = (index: number) => {
+    if (data.length <= 1) {
+      return left
+    }
+
+    return (
+      left +
+      (index / (data.length - 1)) *
+        (width - left - right)
+    )
+  }
 
   const y = (amount: number) =>
     top +
     (1 - amount / maximum) *
       (height - top - bottom)
-
 
   const points = (values: number[]) =>
     values
@@ -186,13 +166,45 @@ function SalesChart() {
       )
       .join(' ')
 
+  const salesPoints = points(salesValues)
+  const profitPoints = points(profitValues)
 
-  const area = [
-    `${x(0)},${y(0)}`,
-    points(demoSales),
-    `${x(demoSales.length - 1)},${y(0)}`,
-  ].join(' ')
+  const area =
+    data.length > 0
+      ? [
+          `${x(0)},${y(0)}`,
+          salesPoints,
+          `${x(data.length - 1)},${y(0)}`,
+        ].join(' ')
+      : ''
 
+  const gridValues = [
+    0,
+    maximum / 3,
+    (maximum / 3) * 2,
+    maximum,
+  ]
+
+  const visibleDateIndexes =
+    data.length <= 8
+      ? data.map((_, index) => index)
+      : [0, 2, 4, 6, 8, 10, 12, 14].filter(
+          (index) => index < data.length
+        )
+
+  const formatAxisValue = (
+    value: number
+  ) => {
+    if (value >= 1000) {
+      const thousands = value / 1000
+
+      return Number.isInteger(thousands)
+        ? `${thousands} bin`
+        : `${thousands.toFixed(1)} bin`
+    }
+
+    return Math.round(value).toString()
+  }
 
   return (
     <svg
@@ -202,16 +214,13 @@ function SalesChart() {
       aria-labelledby="sw-chart-title sw-chart-description"
     >
       <title id="sw-chart-title">
-        Örnek günlük satış ve brüt kâr grafiği
+        Günlük satış ve brüt kâr grafiği
       </title>
 
       <desc id="sw-chart-description">
-        1–15 Eylül arasındaki örnek satışlar mavi,
-        brüt kâr yeşil çizgiyle gösterilir. Toplam
-        satış {money.format(totalSales)}, toplam brüt
-        kâr {money.format(totalProfit)}.
+        Son 15 günlük gerçek satış ve brüt
+        kâr performansı.
       </desc>
-
 
       <defs>
         <linearGradient
@@ -235,10 +244,9 @@ function SalesChart() {
         </linearGradient>
       </defs>
 
-
-      {[0, 5000, 10000, 15000].map(
-        (value) => (
-          <g key={value}>
+      {gridValues.map(
+        (value, index) => (
+          <g key={index}>
             <line
               x1={left}
               y1={y(value)}
@@ -255,85 +263,94 @@ function SalesChart() {
               fill="#8591a6"
               fontSize="11"
             >
-              {value === 0
-                ? '0'
-                : `${value / 1000} bin`}
+              {formatAxisValue(value)}
             </text>
           </g>
         )
       )}
 
+      {area && (
+        <polygon
+          points={area}
+          fill="url(#sw-sales-fill)"
+        />
+      )}
 
-      <polygon
-        points={area}
-        fill="url(#sw-sales-fill)"
-      />
-
-
-      <polyline
-        points={points(demoSales)}
-        fill="none"
-        stroke="#4285ff"
-        strokeWidth="2.5"
-        strokeLinejoin="round"
-      />
-
-
-      <polyline
-        points={points(demoProfit)}
-        fill="none"
-        stroke="#58ad88"
-        strokeWidth="2.5"
-        strokeLinejoin="round"
-      />
-
-
-      {demoSales.map(
-        (value, index) => (
-          <circle
-            key={`sales-${index}`}
-            cx={x(index)}
-            cy={y(value)}
-            r="3"
-            fill="white"
+      {data.length > 0 && (
+        <>
+          <polyline
+            points={salesPoints}
+            fill="none"
             stroke="#4285ff"
-            strokeWidth="1.8"
-          >
-            <title>
-              {index + 1} Eylül:{' '}
-              {money.format(value)} satış
-            </title>
-          </circle>
-        )
-      )}
-
-
-      {demoProfit.map(
-        (value, index) => (
-          <circle
-            key={`profit-${index}`}
-            cx={x(index)}
-            cy={y(value)}
-            r="2.6"
-            fill="white"
-            stroke="#58ad88"
-            strokeWidth="1.6"
+            strokeWidth="2.5"
+            strokeLinejoin="round"
           />
-        )
+
+          <polyline
+            points={profitPoints}
+            fill="none"
+            stroke="#58ad88"
+            strokeWidth="2.5"
+            strokeLinejoin="round"
+          />
+        </>
       )}
 
+      {data.map((item, index) => (
+        <circle
+          key={`sales-${item.date}`}
+          cx={x(index)}
+          cy={y(Number(item.sales))}
+          r="3"
+          fill="white"
+          stroke="#4285ff"
+          strokeWidth="1.8"
+        >
+          <title>
+            {formatDateLabel(item.date)}:{' '}
+            {money.format(
+              Number(item.sales)
+            )}{' '}
+            satış
+          </title>
+        </circle>
+      ))}
 
-      {[0, 2, 4, 6, 8, 10, 12, 14].map(
+      {data.map((item, index) => (
+        <circle
+          key={`profit-${item.date}`}
+          cx={x(index)}
+          cy={y(
+            Number(item.gross_profit)
+          )}
+          r="2.6"
+          fill="white"
+          stroke="#58ad88"
+          strokeWidth="1.6"
+        >
+          <title>
+            {formatDateLabel(item.date)}:{' '}
+            {money.format(
+              Number(item.gross_profit)
+            )}{' '}
+            brüt kâr
+          </title>
+        </circle>
+      ))}
+
+      {visibleDateIndexes.map(
         (index) => (
           <text
-            key={index}
+            key={data[index].date}
             x={x(index)}
             y={height - 12}
             textAnchor="middle"
             fill="#8591a6"
             fontSize="11"
           >
-            {index + 1} Eyl
+            {formatDateLabel(
+              data[index].date
+            )}
           </text>
         )
       )}
@@ -343,6 +360,205 @@ function SalesChart() {
 
 
 export default function Dashboard() {
+  const navigate = useNavigate()
+
+  const { business } = useBusiness()
+
+  const [summary, setSummary] =
+    useState<DashboardSummary | null>(
+      null
+    )
+
+  const [loading, setLoading] =
+    useState(true)
+
+  const [error, setError] =
+    useState<string | null>(null)
+
+
+  const currency =
+    business?.currency || 'TRY'
+
+
+  const money = useMemo(
+    () =>
+      new Intl.NumberFormat(
+        'tr-TR',
+        {
+          style: 'currency',
+          currency,
+          maximumFractionDigits: 2,
+        }
+      ),
+    [currency]
+  )
+
+
+  const loadDashboard = async () => {
+    setLoading(true)
+    setError(null)
+
+    const result =
+      await getDashboardSummary()
+
+    if (!result.data) {
+      setError(
+        result.error ||
+          'Dashboard verileri yüklenemedi.'
+      )
+
+      setLoading(false)
+      return
+    }
+
+    setSummary(result.data)
+    setLoading(false)
+  }
+
+
+  useEffect(() => {
+    loadDashboard()
+  }, [])
+
+
+  const totalSales = Number(
+    summary?.total_sales || 0
+  )
+
+  const grossProfit = Number(
+    summary?.gross_profit || 0
+  )
+
+  const grossProfitMargin = Number(
+    summary?.gross_profit_margin || 0
+  )
+
+  const saleCount =
+    summary?.sale_count || 0
+
+  const criticalStockCount =
+    summary?.critical_stock_count || 0
+
+  const dailyPerformance =
+    summary?.daily_performance || []
+
+  const activeDays =
+    dailyPerformance.filter(
+      (item) => Number(item.sales) > 0
+    ).length
+
+  const averageDailySales =
+    activeDays > 0
+      ? totalSales / activeDays
+      : 0
+
+  const averageDailyProfit =
+    activeDays > 0
+      ? grossProfit / activeDays
+      : 0
+
+
+  const periodText =
+    dailyPerformance.length > 0
+      ? `${formatLongDate(
+          dailyPerformance[0].date
+        )} – ${formatLongDate(
+          dailyPerformance[
+            dailyPerformance.length - 1
+          ].date
+        )}`
+      : 'Son 15 gün'
+
+
+  if (loading) {
+    return (
+      <main
+        id="sw-main"
+        className="sw-main"
+      >
+        <section className="sw-page-heading">
+          <div>
+            <p className="sw-eyebrow">
+              İŞLETMENİN NABZI
+            </p>
+
+            <h1>
+              İşletmene genel bakış
+            </h1>
+
+            <p className="sw-subtitle">
+              Dashboard verileri
+              yükleniyor...
+            </p>
+          </div>
+        </section>
+
+        <section
+          className="sw-panel"
+          style={statePanelStyle}
+        >
+          Veriler yükleniyor...
+        </section>
+      </main>
+    )
+  }
+
+
+  if (error || !summary) {
+    return (
+      <main
+        id="sw-main"
+        className="sw-main"
+      >
+        <section className="sw-page-heading">
+          <div>
+            <p className="sw-eyebrow">
+              İŞLETMENİN NABZI
+            </p>
+
+            <h1>
+              İşletmene genel bakış
+            </h1>
+
+            <p className="sw-subtitle">
+              Satışlarını, kârlılığını ve
+              stok durumunu tek yerden
+              takip et.
+            </p>
+          </div>
+        </section>
+
+        <section
+          className="sw-panel"
+          style={errorPanelStyle}
+        >
+          <strong>
+            Dashboard verileri
+            yüklenemedi
+          </strong>
+
+          <span style={errorTextStyle}>
+            {error}
+          </span>
+
+          <button
+            type="button"
+            className="sw-primary-button"
+            onClick={loadDashboard}
+          >
+            <Icon
+              name="refresh"
+              size={17}
+            />
+
+            Tekrar Dene
+          </button>
+        </section>
+      </main>
+    )
+  }
+
+
   return (
     <main
       id="sw-main"
@@ -359,8 +575,9 @@ export default function Dashboard() {
           </h1>
 
           <p className="sw-subtitle">
-            Satışlarını, kârlılığını ve stok durumunu
-            tek yerden takip et.
+            Satışlarını, kârlılığını ve
+            stok durumunu tek yerden
+            takip et.
           </p>
         </div>
 
@@ -373,15 +590,16 @@ export default function Dashboard() {
             />
 
             <span>
-              1–15 Eylül 2026
+              {periodText}
             </span>
           </div>
 
           <button
             type="button"
             className="sw-primary-button"
-            disabled
-            title="Satış modülü eklendiğinde kullanıma açılacak."
+            onClick={() =>
+              navigate('/app/sales')
+            }
           >
             <span aria-hidden="true">
               +
@@ -395,7 +613,7 @@ export default function Dashboard() {
 
       <section
         className="sw-stats"
-        aria-label="Örnek işletme özeti"
+        aria-label="İşletme özeti"
       >
         <article className="sw-stat-card">
           <span className="sw-stat-icon is-blue">
@@ -412,7 +630,7 @@ export default function Dashboard() {
             </strong>
 
             <p>
-              Seçili dönemdeki satış tutarı
+              Son 15 gündeki satış tutarı
             </p>
           </div>
         </article>
@@ -429,11 +647,23 @@ export default function Dashboard() {
             </h2>
 
             <strong>
-              {money.format(totalProfit)}
+              {money.format(grossProfit)}
             </strong>
 
-            <p className="sw-positive">
-              Brüt kâr marjı %30
+            <p
+              className={
+                grossProfit >= 0
+                  ? 'sw-positive'
+                  : undefined
+              }
+            >
+              Brüt kâr marjı %
+              {grossProfitMargin.toLocaleString(
+                'tr-TR',
+                {
+                  maximumFractionDigits: 2,
+                }
+              )}
             </p>
           </div>
         </article>
@@ -450,11 +680,11 @@ export default function Dashboard() {
             </h2>
 
             <strong>
-              186
+              {saleCount}
             </strong>
 
             <p>
-              Seçili dönemde tamamlanan
+              Son 15 günde tamamlanan
             </p>
           </div>
         </article>
@@ -471,12 +701,21 @@ export default function Dashboard() {
             </h2>
 
             <strong>
-              8
+              {criticalStockCount}
             </strong>
 
-            <span className="sw-status is-critical">
-              Kontrol gerekiyor
-            </span>
+            {criticalStockCount > 0 ? (
+              <span className="sw-status is-critical">
+                Kontrol gerekiyor
+              </span>
+            ) : (
+              <span
+                className="sw-status"
+                style={healthyStatusStyle}
+              >
+                Stoklar yeterli
+              </span>
+            )}
           </div>
         </article>
       </section>
@@ -491,7 +730,7 @@ export default function Dashboard() {
               </h2>
 
               <p>
-                Günlük performans dağılımı
+                Son 15 günlük performans
               </p>
             </div>
 
@@ -503,17 +742,22 @@ export default function Dashboard() {
 
           <div className="sw-legend">
             <span>
-              <i className="is-sales" /> Satış (₺)
+              <i className="is-sales" />{' '}
+              Satış ({currency})
             </span>
 
             <span>
-              <i className="is-profit" /> Brüt Kâr (₺)
+              <i className="is-profit" />{' '}
+              Brüt Kâr ({currency})
             </span>
           </div>
 
 
           <div className="sw-chart-container">
-            <SalesChart />
+            <SalesChart
+              data={dailyPerformance}
+              money={money}
+            />
           </div>
 
 
@@ -533,33 +777,39 @@ export default function Dashboard() {
                 Toplam Brüt Kâr
               </span>
 
-              <strong className="sw-positive">
-                {money.format(totalProfit)}
-              </strong>
-            </div>
-
-            <div>
-              <span>
-                Ort. Günlük Satış
-              </span>
-
-              <strong>
+              <strong
+                className={
+                  grossProfit >= 0
+                    ? 'sw-positive'
+                    : undefined
+                }
+              >
                 {money.format(
-                  totalSales /
-                    demoSales.length
+                  grossProfit
                 )}
               </strong>
             </div>
 
             <div>
               <span>
-                Ort. Günlük Brüt Kâr
+                Ort. Aktif Gün Satışı
               </span>
 
               <strong>
                 {money.format(
-                  totalProfit /
-                    demoProfit.length
+                  averageDailySales
+                )}
+              </strong>
+            </div>
+
+            <div>
+              <span>
+                Ort. Aktif Gün Brüt Kârı
+              </span>
+
+              <strong>
+                {money.format(
+                  averageDailyProfit
                 )}
               </strong>
             </div>
@@ -575,129 +825,207 @@ export default function Dashboard() {
               </h2>
 
               <p>
-                Öncelik verilmesi gereken ürünler
+                Öncelik verilmesi gereken
+                ürünler
               </p>
             </div>
 
             <span className="sw-count">
-              İlk 5 ürün
+              {criticalStockCount > 5
+                ? `İlk 5 / ${criticalStockCount}`
+                : `${criticalStockCount} ürün`}
             </span>
           </header>
 
 
-          <div className="sw-table-container">
-            <table className="sw-product-table">
-              <caption className="sw-sr-only">
-                Örnek ürünlerin mevcut stok ve minimum
-                stok miktarları
-              </caption>
+          {summary.critical_products
+            .length > 0 ? (
+            <>
+              <div className="sw-table-container">
+                <table className="sw-product-table">
+                  <caption className="sw-sr-only">
+                    Minimum stok seviyesine
+                    ulaşmış veya altına düşmüş
+                    ürünler
+                  </caption>
 
-              <thead>
-                <tr>
-                  <th scope="col">
-                    Ürün
-                  </th>
+                  <thead>
+                    <tr>
+                      <th scope="col">
+                        Ürün
+                      </th>
 
-                  <th scope="col">
-                    Stok
-                  </th>
+                      <th scope="col">
+                        Stok
+                      </th>
 
-                  <th scope="col">
-                    Min.
-                  </th>
+                      <th scope="col">
+                        Min.
+                      </th>
 
-                  <th scope="col">
-                    Durum
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {demoProducts.map(
-                  (product) => (
-                    <tr key={product.sku}>
-                      <td>
-                        <div className="sw-product">
-                          <span
-                            className="sw-product-icon"
-                            style={
-                              {
-                                '--product-color':
-                                  product.color,
-                              } as CSSProperties
-                            }
-                          >
-                            <Icon
-                              name={product.icon}
-                              size={18}
-                            />
-                          </span>
-
-                          <span>
-                            <strong>
-                              {product.name}
-                            </strong>
-
-                            <small>
-                              {product.sku}
-                            </small>
-                          </span>
-                        </div>
-                      </td>
-
-                      <td className="sw-stock-value">
-                        {product.stock}
-                      </td>
-
-                      <td>
-                        {product.minimum}
-                      </td>
-
-                      <td>
-                        <span
-                          className={`sw-status ${
-                            product.status ===
-                            'Kritik'
-                              ? 'is-critical'
-                              : 'is-low'
-                          }`}
-                        >
-                          {product.status}
-                        </span>
-                      </td>
+                      <th scope="col">
+                        Durum
+                      </th>
                     </tr>
-                  )
-                )}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
 
+                  <tbody>
+                    {summary.critical_products.map(
+                      (product) => (
+                        <tr key={product.id}>
+                          <td>
+                            <div className="sw-product">
+                              <span
+                                className="sw-product-icon"
+                                style={
+                                  {
+                                    '--product-color':
+                                      '#e8edf5',
+                                  } as CSSProperties
+                                }
+                              >
+                                <Icon
+                                  name="box"
+                                  size={18}
+                                />
+                              </span>
 
-          <footer className="sw-stock-note">
-            <span aria-hidden="true">
-              ⓘ
-            </span>
+                              <span>
+                                <strong>
+                                  {
+                                    product.name
+                                  }
+                                </strong>
 
-            Minimum stok seviyesinin altındaki ürünler
-            gösterilir.
-          </footer>
+                                <small>
+                                  {
+                                    product.sku
+                                  }
+                                </small>
+                              </span>
+                            </div>
+                          </td>
+
+                          <td className="sw-stock-value">
+                            {
+                              product.stock_quantity
+                            }
+                          </td>
+
+                          <td>
+                            {
+                              product.minimum_stock
+                            }
+                          </td>
+
+                          <td>
+                            <span className="sw-status is-critical">
+                              {product.stock_quantity ===
+                              0
+                                ? 'Stok Tükendi'
+                                : product.stock_quantity <
+                                    product.minimum_stock
+                                  ? 'Kritik'
+                                  : 'Minimum'}
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <footer className="sw-stock-note">
+                <span aria-hidden="true">
+                  ⓘ
+                </span>
+
+                Minimum stok seviyesine
+                ulaşan veya altına düşen
+                ürünler gösterilir.
+              </footer>
+            </>
+          ) : (
+            <div style={emptyStockStyle}>
+              <span style={emptyStockIconStyle}>
+                <Icon
+                  name="box"
+                  size={25}
+                />
+              </span>
+
+              <strong>
+                Kritik stok bulunmuyor
+              </strong>
+
+              <p>
+                Tüm aktif ürünlerin stok
+                seviyesi belirlenen minimum
+                seviyenin üzerinde.
+              </p>
+            </div>
+          )}
         </section>
       </div>
-
-
-      <footer className="sw-demo-note">
-        <Icon
-          name="spark"
-          size={16}
-        />
-
-        <p>
-          Bu paneldeki tutarlar, grafik ve ürünler
-          tasarım önizlemesi için örnektir. Örnek
-          tutarlar TRY cinsindedir; işletmenin gerçek
-          kayıtlarını göstermez.
-        </p>
-      </footer>
     </main>
   )
+}
+
+
+const statePanelStyle: CSSProperties = {
+  minHeight: '300px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: '#738096',
+  fontSize: '15px',
+}
+
+
+const errorPanelStyle: CSSProperties = {
+  minHeight: '300px',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: '14px',
+  textAlign: 'center',
+  padding: '30px',
+}
+
+
+const errorTextStyle: CSSProperties = {
+  color: '#738096',
+}
+
+
+const healthyStatusStyle: CSSProperties = {
+  color: '#18785b',
+  background: '#eaf8f2',
+}
+
+
+const emptyStockStyle: CSSProperties = {
+  minHeight: '320px',
+  padding: '35px 24px',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  textAlign: 'center',
+  color: '#738096',
+}
+
+
+const emptyStockIconStyle: CSSProperties = {
+  width: '54px',
+  height: '54px',
+  borderRadius: '13px',
+  background: '#eef4ff',
+  color: '#4285ff',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginBottom: '14px',
 }

@@ -10,6 +10,7 @@ import {
   createStockMovement,
   getProducts,
   getStockMovements,
+  type ManualMovementType,
   type MovementType,
   type Product,
   type StockMovement,
@@ -79,7 +80,7 @@ function Icon({
 
 interface MovementFormState {
   product_id: string
-  movement_type: MovementType
+  movement_type: ManualMovementType
   quantity: string
   note: string
 }
@@ -98,6 +99,7 @@ const movementLabels: Record<MovementType, string> = {
   OUT: 'Stok Çıkışı',
   ADJUSTMENT_IN: 'Sayım Fazlası',
   ADJUSTMENT_OUT: 'Sayım Eksiği',
+  SALE: 'Satış',
 }
 
 
@@ -969,7 +971,7 @@ export default function StockMovements() {
                       updateForm(
                         'movement_type',
                         event.target
-                          .value as MovementType
+                          .value as ManualMovementType
                       )
                     }
                     disabled={saving}

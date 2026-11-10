@@ -20,6 +20,38 @@ function getCsrfToken(): string {
 }
 
 
+// FastAPI returns `detail` as a string for HTTPException and as an
+// array of { msg, loc, ... } objects for 422 validation errors.
+// Callers render the error directly, so it must always be a string.
+function extractErrorMessage(body: unknown): string {
+  const detail = (body as { detail?: unknown } | null)?.detail
+
+  if (typeof detail === 'string' && detail) {
+    return detail
+  }
+
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((item) =>
+        typeof item?.msg === 'string'
+          ? item.msg.replace(/^Value error, /, '')
+          : ''
+      )
+      .filter(Boolean)
+
+    if (messages.length > 0) {
+      return messages.join(' ')
+    }
+  }
+
+  const fallback = (body as { error?: unknown } | null)?.error
+
+  return typeof fallback === 'string' && fallback
+    ? fallback
+    : 'Request failed'
+}
+
+
 async function request<T>(
   path: string,
   options?: RequestInit
@@ -64,7 +96,7 @@ async function request<T>(
 
     if (!response.ok) {
       return {
-        error: data.detail || 'Request failed',
+        error: extractErrorMessage(data),
         status: response.status,
       }
     }
@@ -104,6 +136,7 @@ export interface RegisterPayload {
 export interface LoginPayload {
   email: string
   password: string
+  remember_me: boolean
 }
 
 
@@ -293,11 +326,16 @@ export async function deleteProduct(
    STOCK MOVEMENTS
 ========================= */
 
-export type MovementType =
+export type ManualMovementType =
   | 'IN'
   | 'OUT'
   | 'ADJUSTMENT_IN'
   | 'ADJUSTMENT_OUT'
+
+
+export type MovementType =
+  | ManualMovementType
+  | 'SALE'
 
 
 export interface StockMovement {
@@ -315,7 +353,7 @@ export interface StockMovement {
 
 export interface CreateStockMovementPayload {
   product_id: string
-  movement_type: MovementType
+  movement_type: ManualMovementType
   quantity: number
   note?: string
 }
@@ -341,6 +379,199 @@ export async function createStockMovement(
     method: 'POST',
     body: JSON.stringify(data),
   })
+}
+
+
+/* =========================
+   SALES
+========================= */
+
+export interface CreateSaleItemPayload {
+  product_id: string
+  quantity: number
+}
+
+
+export interface CreateSalePayload {
+  items: CreateSaleItemPayload[]
+}
+
+
+export interface SaleItem {
+  id: string
+  product_id: string
+  product_name: string
+  product_sku: string
+  quantity: number
+  unit_sale_price: string
+  unit_purchase_price: string
+  subtotal: string
+  cost: string
+  gross_profit: string
+}
+
+
+export interface Sale {
+  id: string
+  business_id: string
+  total_amount: string
+  total_cost: string
+  gross_profit: string
+  created_at: string
+  items: SaleItem[]
+}
+
+
+export async function createSale(
+  data: CreateSalePayload
+): Promise<ApiResponse<Sale>> {
+  return request('/api/sales', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+
+/* =========================
+   DASHBOARD
+========================= */
+
+export interface DailyPerformance {
+  date: string
+  sales: string
+  gross_profit: string
+}
+
+
+export interface CriticalProduct {
+  id: string
+  name: string
+  sku: string
+  stock_quantity: number
+  minimum_stock: number
+}
+
+
+export interface DashboardSummary {
+  total_sales: string
+  gross_profit: string
+  sale_count: number
+  gross_profit_margin: string
+  critical_stock_count: number
+  daily_performance: DailyPerformance[]
+  critical_products: CriticalProduct[]
+}
+
+
+export async function getDashboardSummary(): Promise<
+  ApiResponse<DashboardSummary>
+> {
+  return request('/api/dashboard/summary')
+}
+
+
+/* =========================
+   ANALYTICS
+========================= */
+
+export interface AnalyticsDailyPerformance {
+  date: string
+  sales: string
+  gross_profit: string
+  sale_count: number
+}
+
+
+export interface ProductPerformance {
+  product_id: string
+  product_name: string
+  product_sku: string
+  quantity_sold: number
+  revenue: string
+  gross_profit: string
+}
+
+
+export interface SaleHistoryItem {
+  product_id: string
+  product_name: string
+  product_sku: string
+  quantity: number
+  unit_sale_price: string
+  subtotal: string
+}
+
+
+export interface SaleHistory {
+  id: string
+  created_at: string
+  total_quantity: number
+  total_amount: string
+  gross_profit: string
+  items: SaleHistoryItem[]
+}
+
+
+export interface AnalyticsSummary {
+  period_days: number
+  total_sales: string
+  gross_profit: string
+  sale_count: number
+  average_order_value: string
+  gross_profit_margin: string
+  daily_performance: AnalyticsDailyPerformance[]
+  product_performance: ProductPerformance[]
+  sales_history: SaleHistory[]
+}
+
+
+/* =========================
+   PRODUCT ANALYSIS
+========================= */
+
+export interface ProductAnalysisMetrics {
+  period_days: number
+  quantity_sold: number
+  revenue: string
+  gross_profit: string
+  gross_profit_margin: string
+  average_daily_sales: string
+  current_stock: number
+  stock_coverage_days: string | null
+  sales_trend_percent: string | null
+}
+
+
+export interface ProductAnalysis {
+  product_id: string
+  product_name: string
+  product_sku: string
+  observation_days: number
+  metrics: ProductAnalysisMetrics
+}
+
+
+export interface ProductAnalysisList {
+  period_days: number
+  products: ProductAnalysis[]
+}
+
+
+export async function getAnalyticsSummary(
+  days: number = 30
+): Promise<ApiResponse<AnalyticsSummary>> {
+  return request(
+    `/api/analytics/summary?days=${days}`
+  )
+}
+
+
+export async function getProductAnalysis(
+  days: number = 30
+): Promise<ApiResponse<ProductAnalysisList>> {
+  return request(
+    `/api/analytics/products?days=${days}`
+  )
 }
 
 

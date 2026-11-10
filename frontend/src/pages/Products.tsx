@@ -15,6 +15,8 @@ import {
   type Product,
 } from '../lib/api'
 
+import { useBusiness } from '../contexts/BusinessContext'
+
 import './dashboard.css'
 
 type IconName =
@@ -134,6 +136,9 @@ function getStockStatus(product: Product) {
 }
 
 export default function Products() {
+  const { business } = useBusiness()
+  const currency = business?.currency ?? 'TRY'
+
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -794,13 +799,15 @@ export default function Products() {
 
                             <td>
                               {formatMoney(
-                                product.purchase_price
+                                product.purchase_price,
+                                currency
                               )}
                             </td>
 
                             <td>
                               {formatMoney(
-                                product.sale_price
+                                product.sale_price,
+                                currency
                               )}
                             </td>
 

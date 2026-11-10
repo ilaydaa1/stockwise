@@ -118,12 +118,14 @@ const navigation: NavigationItem[] = [
   {
     label: 'Satışlar',
     icon: 'cart',
-    available: false,
+    path: '/app/sales',
+    available: true,
   },
   {
     label: 'Analizler',
     icon: 'chart',
-    available: false,
+    path: '/app/analytics',
+    available: true,
   },
   {
     label: 'Karar Destek',
@@ -144,6 +146,14 @@ function getPageName(
     pathname === '/app/stock-movements'
   ) {
     return 'Stok Hareketleri'
+  }
+
+  if (pathname === '/app/sales') {
+    return 'Satışlar'
+  }
+
+  if (pathname === '/app/analytics') {
+    return 'Analizler'
   }
 
   return 'Genel Bakış'
@@ -414,16 +424,6 @@ export default function AppLayout() {
               </strong>
             </span>
           </div>
-
-
-          {location.pathname ===
-            '/app' && (
-            <span className="sw-demo-badge">
-              <span />
-
-              Örnek veriler
-            </span>
-          )}
         </header>
 
         <Outlet />
