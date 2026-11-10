@@ -1,27 +1,31 @@
-import pytest
-from unittest.mock import patch, MagicMock
-from fastapi.testclient import TestClient
+from unittest.mock import MagicMock
+
 from sqlalchemy.exc import OperationalError
+
+from stockwise.app.db.session import get_db
 from stockwise.app.main import app
 
-client = TestClient(app)
 
+def test_ready_returns_200_when_db_connected(client):
+    response = client.get("/api/ready")
 
-def test_ready_returns_200_when_db_connected():
-    mock_session = MagicMock()
-    mock_session.execute.return_value = None
-    mock_session.commit.return_value = None
-    mock_session.close.return_value = None
-    with patch('stockwise.app.api.ready.SessionLocal', return_value=mock_session):
-        response = client.get("/api/ready")
     assert response.status_code == 200
-    assert response.json()["status"] == "ready"
+    assert response.json() == {"status": "ready", "database": "connected"}
 
 
-def test_ready_returns_503_when_db_unavailable():
+def test_ready_returns_503_when_db_unavailable(client):
     mock_session = MagicMock()
-    mock_session.execute.side_effect = OperationalError("connection failed", None, None)
-    with patch('stockwise.app.api.ready.SessionLocal', return_value=mock_session):
+    mock_session.execute.side_effect = OperationalError(
+        "connection failed", None, None
+    )
+
+    original_override = app.dependency_overrides[get_db]
+    app.dependency_overrides[get_db] = lambda: mock_session
+
+    try:
         response = client.get("/api/ready")
+    finally:
+        app.dependency_overrides[get_db] = original_override
+
     assert response.status_code == 503
-    assert "Service unavailable" in response.json()["detail"]
+    assert response.json()["detail"] == "Service unavailable"
