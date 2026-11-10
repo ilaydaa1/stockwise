@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from stockwise.app.core.config import settings
 from stockwise.app.core.security import generate_session_token, hash_token
 from stockwise.app.db.session import get_db
+from stockwise.app.models.business import Business
 from stockwise.app.models.user import User
 from stockwise.app.models.session import AuthSession
 
@@ -198,3 +199,22 @@ def get_current_user(
 
 def require_csrf(request: Request) -> None:
     _validate_csrf(request)
+
+
+def get_current_business(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Business:
+    business = (
+        db.query(Business)
+        .filter(Business.owner_id == user.id)
+        .first()
+    )
+
+    if not business:
+        raise HTTPException(
+            status_code=404,
+            detail="BUSINESS_NOT_FOUND",
+        )
+
+    return business

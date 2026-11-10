@@ -11,6 +11,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from stockwise.app.db.base import Base
+from stockwise.app.db.ids import new_uuid
 
 
 class StockMovement(Base):
@@ -18,7 +19,7 @@ class StockMovement(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True,
-        default=uuid.uuid4,
+        default=new_uuid,
     )
 
     business_id: Mapped[uuid.UUID] = mapped_column(

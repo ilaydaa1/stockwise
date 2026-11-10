@@ -16,7 +16,9 @@ from stockwise.app.core.deps import (
 )
 from stockwise.app.db.session import get_db
 from stockwise.app.models.business import Business
+from stockwise.app.models.category import Category
 from stockwise.app.models.product import Product
+from stockwise.app.models.supplier import Supplier
 from stockwise.app.models.user import User
 
 
@@ -32,6 +34,16 @@ def _product_to_response(
     return ProductResponse(
         id=str(product.id),
         business_id=str(product.business_id),
+        category_id=(
+            str(product.category_id)
+            if product.category_id
+            else None
+        ),
+        supplier_id=(
+            str(product.supplier_id)
+            if product.supplier_id
+            else None
+        ),
         name=product.name,
         sku=product.sku,
         purchase_price=product.purchase_price,
@@ -42,6 +54,47 @@ def _product_to_response(
         created_at=product.created_at.isoformat(),
         updated_at=product.updated_at.isoformat(),
     )
+
+
+def _ensure_references_belong_to_business(
+    db: Session,
+    business_id: UUID,
+    category_id: UUID | None,
+    supplier_id: UUID | None,
+) -> None:
+    # The database enforces the same rule with composite foreign
+    # keys; checking here gives the client a clear error instead.
+    if category_id is not None:
+        category = (
+            db.query(Category.id)
+            .filter(
+                Category.id == category_id,
+                Category.business_id == business_id,
+            )
+            .first()
+        )
+
+        if not category:
+            raise HTTPException(
+                status_code=404,
+                detail="CATEGORY_NOT_FOUND",
+            )
+
+    if supplier_id is not None:
+        supplier = (
+            db.query(Supplier.id)
+            .filter(
+                Supplier.id == supplier_id,
+                Supplier.business_id == business_id,
+            )
+            .first()
+        )
+
+        if not supplier:
+            raise HTTPException(
+                status_code=404,
+                detail="SUPPLIER_NOT_FOUND",
+            )
 
 
 @router.post(
@@ -83,8 +136,17 @@ def create_product(
             detail="Bu SKU ile kayıtlı bir ürün zaten mevcut",
         )
 
+    _ensure_references_belong_to_business(
+        db,
+        business.id,
+        body.category_id,
+        body.supplier_id,
+    )
+
     product = Product(
         business_id=business.id,
+        category_id=body.category_id,
+        supplier_id=body.supplier_id,
         name=body.name,
         sku=body.sku,
         purchase_price=body.purchase_price,
@@ -244,6 +306,13 @@ def update_product(
                 status_code=409,
                 detail="Bu SKU ile kayıtlı bir ürün zaten mevcut",
             )
+
+    _ensure_references_belong_to_business(
+        db,
+        business.id,
+        changes.get("category_id"),
+        changes.get("supplier_id"),
+    )
 
     for field, value in changes.items():
         setattr(product, field, value)

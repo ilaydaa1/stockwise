@@ -1,4 +1,5 @@
 from decimal import Decimal
+from uuid import UUID
 
 from pydantic import (
     BaseModel,
@@ -48,6 +49,9 @@ def validate_price_value(value: Decimal) -> Decimal:
     return value
 
 
+NULLABLE_UPDATE_FIELDS = {"category_id", "supplier_id"}
+
+
 class CreateProductRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -57,6 +61,8 @@ class CreateProductRequest(BaseModel):
     sale_price: Decimal
     stock_quantity: int = 0
     minimum_stock: int = 0
+    category_id: UUID | None = None
+    supplier_id: UUID | None = None
 
     @field_validator("name")
     @classmethod
@@ -128,10 +134,17 @@ class UpdateProductRequest(BaseModel):
     purchase_price: Decimal | None = None
     sale_price: Decimal | None = None
     minimum_stock: int | None = None
+    # Unlike the fields above, these may be set to null explicitly
+    # to remove the category or supplier from a product.
+    category_id: UUID | None = None
+    supplier_id: UUID | None = None
 
     @model_validator(mode="after")
     def reject_explicit_nulls(self):
         for field_name in self.model_fields_set:
+            if field_name in NULLABLE_UPDATE_FIELDS:
+                continue
+
             if getattr(self, field_name) is None:
                 raise ValueError(
                     f"{field_name} null olamaz"
@@ -219,6 +232,8 @@ class UpdateProductRequest(BaseModel):
 class ProductResponse(BaseModel):
     id: str
     business_id: str
+    category_id: str | None = None
+    supplier_id: str | None = None
     name: str
     sku: str
     purchase_price: Decimal

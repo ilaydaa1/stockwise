@@ -9,6 +9,8 @@ from stockwise.app.api import health, ready
 from stockwise.app.api.auth import router as auth_router
 from stockwise.app.api.analytics.router import router as analytics_router
 from stockwise.app.api.business import router as business_router
+from stockwise.app.api.categories import router as categories_router
+from stockwise.app.api.suppliers import router as suppliers_router
 from stockwise.app.api.dashboard.router import router as dashboard_router
 from stockwise.app.api.products import router as products_router
 from stockwise.app.api.sales.router import router as sales_router
@@ -58,6 +60,18 @@ def create_application() -> FastAPI:
         business_router,
         prefix="/api",
         tags=["businesses"],
+    )
+
+    application.include_router(
+        categories_router,
+        prefix="/api",
+        tags=["categories"],
+    )
+
+    application.include_router(
+        suppliers_router,
+        prefix="/api",
+        tags=["suppliers"],
     )
 
     application.include_router(

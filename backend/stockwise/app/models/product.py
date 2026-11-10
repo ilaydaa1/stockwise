@@ -6,6 +6,7 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     Numeric,
@@ -15,6 +16,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from stockwise.app.db.base import Base
+from stockwise.app.db.ids import new_uuid
 
 
 class Product(Base):
@@ -22,12 +24,22 @@ class Product(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True,
-        default=uuid.uuid4,
+        default=new_uuid,
     )
 
     business_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("businesses.id", ondelete="CASCADE"),
         nullable=False,
+    )
+
+    # Both are optional. The composite foreign keys in
+    # __table_args__ guarantee they belong to the same business.
+    category_id: Mapped[uuid.UUID | None] = mapped_column(
+        nullable=True,
+    )
+
+    supplier_id: Mapped[uuid.UUID | None] = mapped_column(
+        nullable=True,
     )
 
     name: Mapped[str] = mapped_column(
@@ -103,7 +115,19 @@ class Product(Base):
             "sku",
             name="uq_products_business_sku",
         ),
+        ForeignKeyConstraint(
+            ["business_id", "category_id"],
+            ["categories.business_id", "categories.id"],
+            name="fk_products_category_same_business",
+        ),
+        ForeignKeyConstraint(
+            ["business_id", "supplier_id"],
+            ["suppliers.business_id", "suppliers.id"],
+            name="fk_products_supplier_same_business",
+        ),
         Index("ix_products_business_id", "business_id"),
+        Index("ix_products_category_id", "category_id"),
+        Index("ix_products_supplier_id", "supplier_id"),
     )
 
     def __repr__(self) -> str:

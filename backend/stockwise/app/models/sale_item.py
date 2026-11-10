@@ -5,6 +5,7 @@ from sqlalchemy import ForeignKey, Index, Integer, Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from stockwise.app.db.base import Base
+from stockwise.app.db.ids import new_uuid
 
 
 class SaleItem(Base):
@@ -12,7 +13,7 @@ class SaleItem(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True,
-        default=uuid.uuid4,
+        default=new_uuid,
     )
 
     sale_id: Mapped[uuid.UUID] = mapped_column(

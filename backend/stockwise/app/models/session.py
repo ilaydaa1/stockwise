@@ -5,13 +5,14 @@ from sqlalchemy import String, DateTime, ForeignKey, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from stockwise.app.db.base import Base
+from stockwise.app.db.ids import new_uuid
 
 
 class AuthSession(Base):
     __tablename__ = "auth_sessions"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        primary_key=True, default=uuid.uuid4
+        primary_key=True, default=new_uuid
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False
