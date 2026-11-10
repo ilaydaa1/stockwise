@@ -1,0 +1,343 @@
+{
+  "synthetic": true,
+  "notice": "All data in this folder is artificial. It was produced by a simulation and does not describe any real business, person or transaction.",
+  "generator": "python -m stockwise.datagen generate",
+  "seed": 42,
+  "period": {
+    "start": "2025-08-01",
+    "end": "2026-10-31",
+    "days": 457
+  },
+  "timezone": "Europe/Istanbul",
+  "timestamps": "UTC, ISO 8601",
+  "currency": "TRY",
+  "costing_method": "moving weighted average cost",
+  "row_counts": {
+    "categories": 8,
+    "suppliers": 6,
+    "products": 80,
+    "sales": 23643,
+    "sale_items": 41549,
+    "sale_returns": 573,
+    "stock_movements": 44071,
+    "ground_truth/daily_demand": 35632,
+    "ground_truth/purchasing_policy": 80
+  },
+  "simulation_totals": {
+    "units_demanded": 51659,
+    "units_sold": 49565,
+    "units_lost_to_stockouts": 2094,
+    "fill_rate": 0.9595
+  },
+  "scenarios": {
+    "supplier_delays": [
+      {
+        "supplier": "temizlik",
+        "orders_placed_from": "2026-01-05",
+        "orders_placed_to": "2026-01-25",
+        "extra_days": 18,
+        "description": "Temizlik tedarikçisinde üç haftalık teslimat aksaması"
+      }
+    ],
+    "bulk_purchases": [
+      {
+        "sku": "TOY-008",
+        "date": "2025-11-20",
+        "quantity": 300,
+        "discount_percent": 8.0,
+        "description": "Yılbaşı öncesi toplu alım (kampanya indirimi)"
+      }
+    ],
+    "demand_spikes": [
+      {
+        "sku": "TOY-010",
+        "start": "2026-05-10",
+        "end": "2026-05-19",
+        "multiplier": 6.0,
+        "description": "Sosyal medyada popüler olan ürün"
+      }
+    ],
+    "supplier_cost_changes": [
+      {
+        "supplier": "icecek",
+        "date": "2025-11-03",
+        "percent": 5.0,
+        "sale_prices_follow_after_days": 21
+      },
+      {
+        "supplier": "icecek",
+        "date": "2026-03-02",
+        "percent": 6.0,
+        "sale_prices_follow_after_days": 21
+      },
+      {
+        "supplier": "icecek",
+        "date": "2026-07-06",
+        "percent": 4.0,
+        "sale_prices_follow_after_days": 21
+      },
+      {
+        "supplier": "gida",
+        "date": "2025-10-06",
+        "percent": 4.0,
+        "sale_prices_follow_after_days": 21
+      },
+      {
+        "supplier": "gida",
+        "date": "2026-02-02",
+        "percent": 7.0,
+        "sale_prices_follow_after_days": 21
+      },
+      {
+        "supplier": "gida",
+        "date": "2026-06-01",
+        "percent": 5.0,
+        "sale_prices_follow_after_days": 21
+      },
+      {
+        "supplier": "kirtasiye",
+        "date": "2026-01-05",
+        "percent": 8.0,
+        "sale_prices_follow_after_days": 21
+      },
+      {
+        "supplier": "kirtasiye",
+        "date": "2026-08-03",
+        "percent": 6.0,
+        "sale_prices_follow_after_days": 21
+      },
+      {
+        "supplier": "temizlik",
+        "date": "2025-12-01",
+        "percent": 5.0,
+        "sale_prices_follow_after_days": 21
+      },
+      {
+        "supplier": "temizlik",
+        "date": "2026-05-04",
+        "percent": 6.0,
+        "sale_prices_follow_after_days": 21
+      },
+      {
+        "supplier": "oyuncak",
+        "date": "2026-02-16",
+        "percent": 7.0,
+        "sale_prices_follow_after_days": 21
+      },
+      {
+        "supplier": "oyuncak",
+        "date": "2026-09-07",
+        "percent": 5.0,
+        "sale_prices_follow_after_days": 21
+      },
+      {
+        "supplier": "tekno",
+        "date": "2026-01-19",
+        "percent": 8.0,
+        "sale_prices_follow_after_days": 21
+      },
+      {
+        "supplier": "tekno",
+        "date": "2026-07-20",
+        "percent": 3.0,
+        "sale_prices_follow_after_days": 21
+      }
+    ],
+    "product_launches": [
+      {
+        "sku": "BEV-010",
+        "date": "2026-05-01"
+      },
+      {
+        "sku": "SNK-008",
+        "date": "2026-02-01"
+      },
+      {
+        "sku": "CLN-009",
+        "date": "2026-01-15"
+      },
+      {
+        "sku": "WIN-010",
+        "date": "2025-11-01"
+      },
+      {
+        "sku": "PHN-008",
+        "date": "2026-03-01"
+      }
+    ],
+    "fading_products": [
+      {
+        "sku": "STA-009",
+        "demand_fades_from": "2025-10-01"
+      },
+      {
+        "sku": "TOY-008",
+        "demand_fades_from": "2026-01-03"
+      },
+      {
+        "sku": "TOY-009",
+        "demand_fades_from": "2025-12-01"
+      }
+    ],
+    "products_that_barely_sell": [
+      "SNK-009",
+      "CLN-010",
+      "PRS-009",
+      "WIN-009",
+      "PHN-009",
+      "PHN-010"
+    ],
+    "special_days": [
+      {
+        "date": "2025-10-29",
+        "demand_factor": 0.7,
+        "description": "Cumhuriyet Bayramı",
+        "categories": "all"
+      },
+      {
+        "date": "2025-12-29",
+        "demand_factor": 1.4,
+        "description": "Yılbaşı alışverişi",
+        "categories": [
+          "beverages",
+          "snacks",
+          "toys"
+        ]
+      },
+      {
+        "date": "2025-12-30",
+        "demand_factor": 1.6,
+        "description": "Yılbaşı alışverişi",
+        "categories": [
+          "beverages",
+          "snacks",
+          "toys"
+        ]
+      },
+      {
+        "date": "2025-12-31",
+        "demand_factor": 1.8,
+        "description": "Yılbaşı alışverişi",
+        "categories": [
+          "beverages",
+          "snacks",
+          "toys"
+        ]
+      },
+      {
+        "date": "2026-01-01",
+        "demand_factor": 0.5,
+        "description": "Yılbaşı tatili",
+        "categories": "all"
+      },
+      {
+        "date": "2026-03-18",
+        "demand_factor": 1.3,
+        "description": "Bayram öncesi",
+        "categories": [
+          "beverages",
+          "snacks",
+          "toys"
+        ]
+      },
+      {
+        "date": "2026-03-19",
+        "demand_factor": 1.4,
+        "description": "Bayram öncesi (arife)",
+        "categories": [
+          "beverages",
+          "snacks",
+          "toys"
+        ]
+      },
+      {
+        "date": "2026-03-20",
+        "demand_factor": 0.6,
+        "description": "Ramazan Bayramı",
+        "categories": "all"
+      },
+      {
+        "date": "2026-03-21",
+        "demand_factor": 0.6,
+        "description": "Ramazan Bayramı",
+        "categories": "all"
+      },
+      {
+        "date": "2026-03-22",
+        "demand_factor": 0.6,
+        "description": "Ramazan Bayramı",
+        "categories": "all"
+      },
+      {
+        "date": "2026-04-23",
+        "demand_factor": 1.5,
+        "description": "23 Nisan Çocuk Bayramı",
+        "categories": [
+          "toys"
+        ]
+      },
+      {
+        "date": "2026-05-01",
+        "demand_factor": 0.7,
+        "description": "1 Mayıs",
+        "categories": "all"
+      },
+      {
+        "date": "2026-05-25",
+        "demand_factor": 1.3,
+        "description": "Bayram öncesi",
+        "categories": [
+          "beverages",
+          "snacks",
+          "toys"
+        ]
+      },
+      {
+        "date": "2026-05-26",
+        "demand_factor": 1.4,
+        "description": "Bayram öncesi (arife)",
+        "categories": [
+          "beverages",
+          "snacks",
+          "toys"
+        ]
+      },
+      {
+        "date": "2026-05-27",
+        "demand_factor": 0.6,
+        "description": "Kurban Bayramı",
+        "categories": "all"
+      },
+      {
+        "date": "2026-05-28",
+        "demand_factor": 0.6,
+        "description": "Kurban Bayramı",
+        "categories": "all"
+      },
+      {
+        "date": "2026-05-29",
+        "demand_factor": 0.6,
+        "description": "Kurban Bayramı",
+        "categories": "all"
+      },
+      {
+        "date": "2026-05-30",
+        "demand_factor": 0.6,
+        "description": "Kurban Bayramı",
+        "categories": "all"
+      },
+      {
+        "date": "2026-08-30",
+        "demand_factor": 0.7,
+        "description": "Zafer Bayramı",
+        "categories": "all"
+      },
+      {
+        "date": "2026-10-29",
+        "demand_factor": 0.7,
+        "description": "Cumhuriyet Bayramı",
+        "categories": "all"
+      }
+    ]
+  }
+}
