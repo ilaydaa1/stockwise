@@ -13,6 +13,8 @@ import Dashboard from './pages/Dashboard'
 import Products from './pages/Products'
 import StockMovements from './pages/StockMovements'
 import Sales from './pages/Sales'
+import SalesHistory from './pages/SalesHistory'
+import Suppliers from './pages/Suppliers'
 import Analytics from './pages/Analytics'
 import Onboarding from './pages/Onboarding'
 
@@ -255,8 +257,18 @@ function AppRoutes() {
         />
 
         <Route
+          path="sales-history"
+          element={<SalesHistory />}
+        />
+
+        <Route
           path="analytics"
           element={<Analytics />}
+        />
+
+        <Route
+          path="suppliers"
+          element={<Suppliers />}
         />
       </Route>
 

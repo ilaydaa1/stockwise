@@ -82,6 +82,7 @@ interface MovementFormState {
   product_id: string
   movement_type: ManualMovementType
   quantity: string
+  unit_cost: string
   note: string
 }
 
@@ -90,6 +91,7 @@ const emptyForm: MovementFormState = {
   product_id: '',
   movement_type: 'IN',
   quantity: '',
+  unit_cost: '',
   note: '',
 }
 
@@ -357,6 +359,22 @@ export default function StockMovements() {
       return
     }
 
+    // A unit cost only applies to stock received from a supplier.
+    const unitCost =
+      form.movement_type === 'IN'
+        ? form.unit_cost.trim().replace(',', '.')
+        : ''
+
+    if (
+      unitCost !== '' &&
+      !/^\d+(\.\d{1,2})?$/.test(unitCost)
+    ) {
+      setFormError(
+        'Birim maliyet 0 veya daha büyük, en fazla iki ondalık basamaklı bir sayı olmalıdır.'
+      )
+      return
+    }
+
     setSaving(true)
 
     const result =
@@ -365,6 +383,7 @@ export default function StockMovements() {
         movement_type:
           form.movement_type,
         quantity,
+        unit_cost: unitCost || undefined,
         note:
           form.note.trim() || undefined,
       })
@@ -683,6 +702,10 @@ export default function StockMovements() {
                       </th>
 
                       <th scope="col">
+                        Birim Maliyet
+                      </th>
+
+                      <th scope="col">
                         Not
                       </th>
 
@@ -792,6 +815,17 @@ export default function StockMovements() {
                                   movement.stock_after
                                 }
                               </strong>
+                            </td>
+
+                            <td>
+                              {movement.unit_cost !== null
+                                ? Number(
+                                    movement.unit_cost
+                                  ).toLocaleString('tr-TR', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })
+                                : '—'}
                             </td>
 
                             <td>
@@ -1019,6 +1053,47 @@ export default function StockMovements() {
                     style={inputStyle}
                   />
                 </label>
+
+                {form.movement_type === 'IN' && (
+                  <label
+                    style={{
+                      ...labelStyle,
+                      gridColumn: '1 / -1',
+                    }}
+                  >
+                    Birim maliyet (isteğe bağlı)
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={form.unit_cost}
+                      onChange={(event) =>
+                        updateForm(
+                          'unit_cost',
+                          event.target.value
+                        )
+                      }
+                      disabled={saving}
+                      placeholder={
+                        selectedProduct
+                          ? `Son alış fiyatı: ${selectedProduct.purchase_price}`
+                          : 'Örn. 12.50'
+                      }
+                      style={inputStyle}
+                    />
+                    <span
+                      style={{
+                        fontSize: '12px',
+                        fontWeight: 400,
+                        lineHeight: 1.5,
+                        color: '#8591a6',
+                      }}
+                    >
+                      Bu teslimatta ürün başına ödenen tutar. Boş
+                      bırakılırsa ürünün son alış fiyatı kullanılır.
+                      Ortalama maliyet buna göre yeniden hesaplanır.
+                    </span>
+                  </label>
+                )}
 
 
                 <label

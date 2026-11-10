@@ -8,11 +8,15 @@ import {
 import {
   createProduct,
   deleteProduct,
+  getCategories,
   getProducts,
+  getSuppliers,
   updateProduct,
   type CreateProductPayload,
   type UpdateProductPayload,
+  type Category,
   type Product,
+  type Supplier,
 } from '../lib/api'
 
 import { useBusiness } from '../contexts/BusinessContext'
@@ -82,6 +86,8 @@ interface ProductFormState {
   sale_price: string
   stock_quantity: string
   minimum_stock: string
+  category_id: string
+  supplier_id: string
 }
 
 const emptyForm: ProductFormState = {
@@ -91,6 +97,8 @@ const emptyForm: ProductFormState = {
   sale_price: '',
   stock_quantity: '0',
   minimum_stock: '0',
+  category_id: '',
+  supplier_id: '',
 }
 
 function formatMoney(
@@ -144,6 +152,8 @@ export default function Products() {
   const [error, setError] = useState<string | null>(null)
 
   const [search, setSearch] = useState('')
+  const [categories, setCategories] = useState<Category[]>([])
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
 
   const [formOpen, setFormOpen] = useState(false)
   const [editingProduct, setEditingProduct] =
@@ -182,8 +192,26 @@ export default function Products() {
     setLoading(false)
   }
 
+  // Categories and suppliers only fill the form's dropdowns and
+  // the labels in the table, so a failure here is not fatal.
+  const loadReferences = async () => {
+    const [categoryResult, supplierResult] = await Promise.all([
+      getCategories(),
+      getSuppliers(),
+    ])
+
+    if (categoryResult.data) {
+      setCategories(categoryResult.data)
+    }
+
+    if (supplierResult.data) {
+      setSuppliers(supplierResult.data)
+    }
+  }
+
   useEffect(() => {
     loadProducts()
+    loadReferences()
   }, [])
 
   const openCreateForm = () => {
@@ -205,6 +233,8 @@ export default function Products() {
         product.stock_quantity.toString(),
       minimum_stock:
         product.minimum_stock.toString(),
+      category_id: product.category_id ?? '',
+      supplier_id: product.supplier_id ?? '',
     })
 
     setFormError(null)
@@ -331,6 +361,8 @@ export default function Products() {
           form.sale_price,
         minimum_stock:
           minimumStock,
+        category_id: form.category_id || null,
+        supplier_id: form.supplier_id || null,
       }
 
       const result = await updateProduct(
@@ -389,6 +421,8 @@ export default function Products() {
         stockQuantity,
       minimum_stock:
         minimumStock,
+      category_id: form.category_id || null,
+      supplier_id: form.supplier_id || null,
     }
 
     const result = await createProduct(payload)
@@ -465,6 +499,14 @@ export default function Products() {
     search
       .trim()
       .toLocaleLowerCase('tr-TR')
+
+  const categoryNames = new Map(
+    categories.map((category) => [category.id, category.name])
+  )
+
+  const supplierNames = new Map(
+    suppliers.map((supplier) => [supplier.id, supplier.name])
+  )
 
   const filteredProducts =
     products.filter((product) => {
@@ -729,7 +771,15 @@ export default function Products() {
                       </th>
 
                       <th scope="col">
-                        Alış Fiyatı
+                        Kategori
+                      </th>
+
+                      <th scope="col">
+                        Son Alış Fiyatı
+                      </th>
+
+                      <th scope="col">
+                        Ort. Maliyet
                       </th>
 
                       <th scope="col">
@@ -798,8 +848,36 @@ export default function Products() {
                             </td>
 
                             <td>
+                              {categoryNames.get(
+                                product.category_id ?? ''
+                              ) || '—'}
+
+                              {supplierNames.get(
+                                product.supplier_id ?? ''
+                              ) && (
+                                <small
+                                  style={{
+                                    display: 'block',
+                                    color: '#8591a6',
+                                  }}
+                                >
+                                  {supplierNames.get(
+                                    product.supplier_id ?? ''
+                                  )}
+                                </small>
+                              )}
+                            </td>
+
+                            <td>
                               {formatMoney(
                                 product.purchase_price,
+                                currency
+                              )}
+                            </td>
+
+                            <td>
+                              {formatMoney(
+                                product.average_cost,
                                 currency
                               )}
                             </td>
@@ -1084,6 +1162,58 @@ export default function Products() {
                     placeholder="0,00"
                     style={inputStyle}
                   />
+                </label>
+
+                <label style={labelStyle}>
+                  Kategori
+                  <select
+                    value={form.category_id}
+                    onChange={(event) =>
+                      updateForm(
+                        'category_id',
+                        event.target.value
+                      )
+                    }
+                    disabled={saving}
+                    style={inputStyle}
+                  >
+                    <option value="">Kategori yok</option>
+
+                    {categories.map((category) => (
+                      <option
+                        key={category.id}
+                        value={category.id}
+                      >
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label style={labelStyle}>
+                  Tedarikçi
+                  <select
+                    value={form.supplier_id}
+                    onChange={(event) =>
+                      updateForm(
+                        'supplier_id',
+                        event.target.value
+                      )
+                    }
+                    disabled={saving}
+                    style={inputStyle}
+                  >
+                    <option value="">Tedarikçi yok</option>
+
+                    {suppliers.map((supplier) => (
+                      <option
+                        key={supplier.id}
+                        value={supplier.id}
+                      >
+                        {supplier.name} ({supplier.lead_time_days} gün)
+                      </option>
+                    ))}
+                  </select>
                 </label>
 
                 {!editingProduct && (

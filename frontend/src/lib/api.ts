@@ -261,6 +261,8 @@ export interface CreateProductPayload {
   sale_price: string
   stock_quantity?: number
   minimum_stock?: number
+  category_id?: string | null
+  supplier_id?: string | null
 }
 
 
@@ -270,6 +272,8 @@ export interface UpdateProductPayload {
   purchase_price?: string
   sale_price?: string
   minimum_stock?: number
+  category_id?: string | null
+  supplier_id?: string | null
 }
 
 
@@ -463,6 +467,8 @@ export interface CriticalProduct {
 
 export interface DashboardSummary {
   total_sales: string
+  refund_total: string
+  net_sales: string
   gross_profit: string
   sale_count: number
   gross_profit_margin: string
@@ -524,6 +530,8 @@ export interface SaleHistory {
 export interface AnalyticsSummary {
   period_days: number
   total_sales: string
+  refund_total: string
+  net_sales: string
   gross_profit: string
   sale_count: number
   average_order_value: string
@@ -581,6 +589,162 @@ export async function getProductAnalysis(
 ): Promise<ApiResponse<ProductAnalysisList>> {
   return request(
     `/api/analytics/products?days=${days}`
+  )
+}
+
+
+/* =========================
+   CATEGORIES AND SUPPLIERS
+========================= */
+
+export interface Category {
+  id: string
+  business_id: string
+  name: string
+  created_at: string
+}
+
+
+export interface Supplier {
+  id: string
+  business_id: string
+  name: string
+  lead_time_days: number
+  created_at: string
+}
+
+
+export interface SupplierPayload {
+  name: string
+  lead_time_days: number
+}
+
+
+export async function getCategories(): Promise<
+  ApiResponse<Category[]>
+> {
+  return request('/api/categories')
+}
+
+
+export async function createCategory(
+  data: { name: string }
+): Promise<ApiResponse<Category>> {
+  return request('/api/categories', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+
+export async function getSuppliers(): Promise<
+  ApiResponse<Supplier[]>
+> {
+  return request('/api/suppliers')
+}
+
+
+export async function createSupplier(
+  data: SupplierPayload
+): Promise<ApiResponse<Supplier>> {
+  return request('/api/suppliers', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+
+export async function updateSupplier(
+  supplierId: string,
+  data: Partial<SupplierPayload>
+): Promise<ApiResponse<Supplier>> {
+  return request(
+    `/api/suppliers/${supplierId}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }
+  )
+}
+
+
+/* =========================
+   SALES HISTORY AND RETURNS
+========================= */
+
+export interface SaleRecordLine {
+  id: string
+  product_id: string
+  product_name: string
+  product_sku: string
+  quantity: number
+  returned_quantity: number
+  unit_sale_price: string
+  subtotal: string
+}
+
+
+export interface SaleRecord {
+  id: string
+  created_at: string
+  total_amount: string
+  total_cost: string
+  gross_profit: string
+  refund_amount: string
+  items: SaleRecordLine[]
+}
+
+
+export interface SalePage {
+  total: number
+  limit: number
+  offset: number
+  items: SaleRecord[]
+}
+
+
+export interface SaleReturn {
+  id: string
+  sale_id: string
+  sale_item_id: string
+  product_id: string
+  quantity: number
+  refund_amount: string
+  cost_amount: string
+  reason: string | null
+  created_at: string
+}
+
+
+export interface CreateSaleReturnPayload {
+  items: {
+    sale_item_id: string
+    quantity: number
+  }[]
+  reason?: string
+}
+
+
+export async function getSales(
+  limit: number = 20,
+  offset: number = 0
+): Promise<ApiResponse<SalePage>> {
+  return request(
+    `/api/sales?limit=${limit}&offset=${offset}`
+  )
+}
+
+
+export async function createSaleReturn(
+  saleId: string,
+  data: CreateSaleReturnPayload
+): Promise<ApiResponse<SaleReturn[]>> {
+  return request(
+    `/api/sales/${saleId}/returns`,
+    {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }
   )
 }
 

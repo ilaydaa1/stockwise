@@ -631,6 +631,12 @@ export default function Dashboard() {
 
             <p>
               Son 15 gündeki satış tutarı
+              {Number(summary?.refund_total ?? 0) > 0 &&
+                ` · ${money.format(
+                  Number(summary?.refund_total ?? 0)
+                )} iade düşülünce ${money.format(
+                  Number(summary?.net_sales ?? 0)
+                )}`}
             </p>
           </div>
         </article>

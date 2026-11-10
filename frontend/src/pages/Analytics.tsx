@@ -1492,6 +1492,21 @@ export default function Analytics() {
                 {data?.sale_count || 0}{' '}
                 satış işlemi
               </span>
+
+              {Number(data?.refund_total ?? 0) > 0 && (
+                <span>
+                  ·{' '}
+                  {formatCurrency(
+                    data?.refund_total || '0',
+                    currency
+                  )}{' '}
+                  iade, net{' '}
+                  {formatCurrency(
+                    data?.net_sales || '0',
+                    currency
+                  )}
+                </span>
+              )}
             </div>
           </article>
 

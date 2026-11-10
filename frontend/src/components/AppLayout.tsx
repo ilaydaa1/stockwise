@@ -19,6 +19,8 @@ type IconName =
   | 'box'
   | 'stock'
   | 'cart'
+  | 'receipt'
+  | 'truck'
   | 'chart'
   | 'spark'
   | 'settings'
@@ -42,6 +44,12 @@ const iconPaths: Record<IconName, string> = {
 
   cart:
     'M3 3h2l3 12h10l3-9H6M9 20h.01M18 20h.01',
+
+  receipt:
+    'M6 3h12v18l-3-2-3 2-3-2-3 2V3ZM9 8h6M9 12h6',
+
+  truck:
+    'M3 6h11v10H3zM14 9h4l3 3v4h-7M7 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM17 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z',
 
   chart:
     'M4 20V10h4v10M10 20V4h4v16M16 20v-7h4v7',
@@ -121,10 +129,24 @@ const navigation: NavigationItem[] = [
     path: '/app/sales',
     available: true,
   },
+
+  {
+    label: 'Satış Geçmişi',
+    icon: 'receipt',
+    path: '/app/sales-history',
+    available: true,
+  },
   {
     label: 'Analizler',
     icon: 'chart',
     path: '/app/analytics',
+    available: true,
+  },
+
+  {
+    label: 'Tedarikçiler',
+    icon: 'truck',
+    path: '/app/suppliers',
     available: true,
   },
   {
@@ -154,6 +176,14 @@ function getPageName(
 
   if (pathname === '/app/analytics') {
     return 'Analizler'
+  }
+
+  if (pathname === '/app/sales-history') {
+    return 'Satış Geçmişi'
+  }
+
+  if (pathname === '/app/suppliers') {
+    return 'Tedarikçiler ve Kategoriler'
   }
 
   return 'Genel Bakış'

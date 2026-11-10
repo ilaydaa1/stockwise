@@ -140,7 +140,7 @@ All routes are under `/api`.
 | `GET/POST /suppliers`, `PATCH /suppliers/{id}` | Suppliers and lead times |
 | `GET/POST /products`, `GET/PATCH/DELETE /products/{id}` | Product management |
 | `GET/POST /stock-movements` | Manual stock changes and history |
-| `POST /sales` | Create a sale |
+| `GET/POST /sales` | List sales (paginated) and create a sale |
 | `GET/POST /sales/{id}/returns` | Return lines of a sale |
 | `GET /dashboard/summary` | Last 15 days at a glance |
 | `GET /analytics/summary`, `GET /analytics/products` | Sales and product analytics |
@@ -151,8 +151,8 @@ State-changing requests need the `x-csrf-token` header, set to the value of the 
 
 - Daily figures are grouped by UTC date, not the business timezone.
 - List endpoints are not paginated.
-- Dashboard and analytics figures are gross: they do not yet subtract returns.
-- Categories, suppliers and returns are available through the API only; the interface has no screens for them yet.
+- Gross profit on the dashboard and analytics pages is not yet reduced by returns; only the sales total shows a net figure.
+- Categories cannot be renamed or deleted, and suppliers cannot be deleted.
 - The automated tests run on SQLite, so PostgreSQL row locking is not exercised by them.
 - The backend and frontend are not containerised; Docker Compose only provides the database.
 - There are no frontend tests and no CI pipeline yet.
