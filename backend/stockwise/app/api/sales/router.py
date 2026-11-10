@@ -1,12 +1,17 @@
+from decimal import Decimal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func
+from sqlalchemy.orm import Session, joinedload
 
 from stockwise.app.api.sales.schemas import (
     CreateReturnRequest,
     CreateSaleRequest,
+    SaleHistoryEntryResponse,
+    SaleHistoryLineResponse,
     SaleItemResponse,
+    SaleListResponse,
     SaleResponse,
     SaleReturnResponse,
 )
@@ -81,6 +86,108 @@ def _sale_to_response(
         gross_profit=str(sale.gross_profit),
         created_at=sale.created_at.isoformat(),
         items=items,
+    )
+
+
+@router.get(
+    "",
+    response_model=SaleListResponse,
+)
+def list_sales(
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    business: Business = Depends(get_current_business),
+    db: Session = Depends(get_db),
+) -> SaleListResponse:
+    """Sales of the business, newest first, one page at a time.
+
+    Each line reports how many units have already been returned, so
+    a client knows how many can still be returned.
+    """
+    total = (
+        db.query(func.count(Sale.id))
+        .filter(Sale.business_id == business.id)
+        .scalar()
+        or 0
+    )
+
+    sales = (
+        db.query(Sale)
+        .options(joinedload(Sale.items).joinedload(SaleItem.product))
+        .filter(Sale.business_id == business.id)
+        .order_by(Sale.created_at.desc(), Sale.id.desc())
+        .limit(limit)
+        .offset(offset)
+        .all()
+    )
+
+    sale_item_ids = [item.id for sale in sales for item in sale.items]
+
+    # One grouped query for the whole page instead of one per line.
+    returned: dict = {}
+
+    if sale_item_ids:
+        returned = {
+            sale_item_id: (int(quantity), refund)
+            for sale_item_id, quantity, refund in (
+                db.query(
+                    SaleReturn.sale_item_id,
+                    func.sum(SaleReturn.quantity),
+                    func.sum(SaleReturn.refund_amount),
+                )
+                .filter(SaleReturn.sale_item_id.in_(sale_item_ids))
+                .group_by(SaleReturn.sale_item_id)
+                .all()
+            )
+        }
+
+    entries = []
+
+    for sale in sales:
+        lines = sorted(sale.items, key=lambda item: item.product.name)
+
+        entries.append(
+            SaleHistoryEntryResponse(
+                id=sale.id,
+                created_at=sale.created_at.isoformat(),
+                total_amount=str(sale.total_amount),
+                total_cost=str(sale.total_cost),
+                gross_profit=str(sale.gross_profit),
+                refund_amount=str(
+                    sum(
+                        (
+                            Decimal(returned[item.id][1])
+                            for item in lines
+                            if item.id in returned
+                        ),
+                        Decimal("0.00"),
+                    ).quantize(Decimal("0.01"))
+                ),
+                items=[
+                    SaleHistoryLineResponse(
+                        id=item.id,
+                        product_id=item.product_id,
+                        product_name=item.product.name,
+                        product_sku=item.product.sku,
+                        quantity=item.quantity,
+                        returned_quantity=(
+                            returned[item.id][0]
+                            if item.id in returned
+                            else 0
+                        ),
+                        unit_sale_price=str(item.unit_sale_price),
+                        subtotal=str(item.subtotal),
+                    )
+                    for item in lines
+                ],
+            )
+        )
+
+    return SaleListResponse(
+        total=int(total),
+        limit=limit,
+        offset=offset,
+        items=entries,
     )
 
 

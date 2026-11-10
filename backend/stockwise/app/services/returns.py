@@ -48,6 +48,29 @@ def _as_utc(value: datetime) -> datetime:
     return value.astimezone(timezone.utc)
 
 
+def refund_total(
+    db: Session,
+    *,
+    business_id: UUID,
+    since: datetime,
+) -> Decimal:
+    """Refunds issued on or after ``since`` (a UTC instant).
+
+    Refunds are counted in the period in which the return happened,
+    not the period of the original sale.
+    """
+    total = (
+        db.query(func.coalesce(func.sum(SaleReturn.refund_amount), 0))
+        .filter(
+            SaleReturn.business_id == business_id,
+            SaleReturn.created_at >= since,
+        )
+        .scalar()
+    )
+
+    return Decimal(str(total)).quantize(Decimal("0.01"))
+
+
 def returned_quantities(
     db: Session,
     sale_item_ids: Sequence[UUID],

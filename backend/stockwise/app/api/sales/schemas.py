@@ -45,6 +45,35 @@ class SaleReturnResponse(BaseModel):
     created_at: str
 
 
+class SaleHistoryLineResponse(BaseModel):
+    id: UUID
+    product_id: UUID
+    product_name: str
+    product_sku: str
+    quantity: int
+    returned_quantity: int
+    unit_sale_price: str
+    subtotal: str
+
+
+class SaleHistoryEntryResponse(BaseModel):
+    id: UUID
+    created_at: str
+    total_amount: str
+    total_cost: str
+    gross_profit: str
+    # Sum of refunds issued against this sale so far.
+    refund_amount: str
+    items: list[SaleHistoryLineResponse]
+
+
+class SaleListResponse(BaseModel):
+    total: int
+    limit: int
+    offset: int
+    items: list[SaleHistoryEntryResponse]
+
+
 class SaleItemResponse(BaseModel):
     id: UUID
     product_id: UUID

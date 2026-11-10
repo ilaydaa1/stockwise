@@ -60,6 +60,9 @@ class AnalyticsSummaryResponse(BaseModel):
     period_days: int
 
     total_sales: str
+    # Refunds issued in the period, and sales after subtracting them.
+    refund_total: str
+    net_sales: str
     gross_profit: str
     sale_count: int
     average_order_value: str

@@ -24,6 +24,7 @@ from stockwise.app.models.user import User
 from stockwise.app.services.product_analysis import (
     get_product_performance,
 )
+from stockwise.app.services.returns import refund_total
 from stockwise.app.services.periods import (
     business_timezone,
     local_date,
@@ -126,6 +127,12 @@ def get_analytics_summary(
     )
 
     sale_count = len(sales)
+
+    refunds = refund_total(
+        db,
+        business_id=business.id,
+        since=start_datetime,
+    )
 
     if sale_count > 0:
         average_order_value = (
@@ -398,6 +405,8 @@ def get_analytics_summary(
         total_sales=str(
             total_sales
         ),
+        refund_total=str(refunds),
+        net_sales=str(total_sales - refunds),
         gross_profit=str(
             gross_profit
         ),
