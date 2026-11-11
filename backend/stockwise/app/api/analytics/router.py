@@ -24,7 +24,7 @@ from stockwise.app.models.user import User
 from stockwise.app.services.product_analysis import (
     get_product_performance,
 )
-from stockwise.app.services.returns import refund_total
+from stockwise.app.services.returns import return_totals
 from stockwise.app.services.periods import (
     business_timezone,
     local_date,
@@ -128,7 +128,7 @@ def get_analytics_summary(
 
     sale_count = len(sales)
 
-    refunds = refund_total(
+    refunds, returned_cost = return_totals(
         db,
         business_id=business.id,
         since=start_datetime,
@@ -407,6 +407,10 @@ def get_analytics_summary(
         ),
         refund_total=str(refunds),
         net_sales=str(total_sales - refunds),
+        returned_cost_total=str(returned_cost),
+        net_gross_profit=str(
+            gross_profit - (refunds - returned_cost)
+        ),
         gross_profit=str(
             gross_profit
         ),

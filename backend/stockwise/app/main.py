@@ -36,6 +36,8 @@ def create_application() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        # Lets a browser on another origin read the paging total.
+        expose_headers=["X-Total-Count"],
     )
 
     application.include_router(

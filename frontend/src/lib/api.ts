@@ -6,6 +6,9 @@ interface ApiResponse<T> {
   data?: T
   error?: string
   status?: number
+  // Total number of matching rows, for endpoints that return one
+  // page of a list and report the total in a response header.
+  total?: number
 }
 
 
@@ -101,9 +104,15 @@ async function request<T>(
       }
     }
 
+    const totalHeader = response.headers.get('X-Total-Count')
+
     return {
       data,
       status: response.status,
+      total:
+        totalHeader !== null
+          ? Number(totalHeader)
+          : undefined,
     }
   } catch {
     return {
@@ -372,15 +381,39 @@ export interface CreateStockMovementPayload {
 }
 
 
-export async function getStockMovements(
+export interface StockMovementQuery {
   productId?: string
+  search?: string
+  limit?: number
+  offset?: number
+}
+
+
+export async function getStockMovements(
+  query: StockMovementQuery = {}
 ): Promise<ApiResponse<StockMovement[]>> {
-  const query = productId
-    ? `?product_id=${encodeURIComponent(productId)}`
-    : ''
+  const params = new URLSearchParams()
+
+  if (query.productId) {
+    params.set('product_id', query.productId)
+  }
+
+  if (query.search) {
+    params.set('q', query.search)
+  }
+
+  if (query.limit !== undefined) {
+    params.set('limit', query.limit.toString())
+  }
+
+  if (query.offset !== undefined) {
+    params.set('offset', query.offset.toString())
+  }
+
+  const suffix = params.toString()
 
   return request(
-    `/api/stock-movements${query}`
+    `/api/stock-movements${suffix ? `?${suffix}` : ''}`
   )
 }
 
@@ -469,6 +502,8 @@ export interface DashboardSummary {
   total_sales: string
   refund_total: string
   net_sales: string
+  returned_cost_total: string
+  net_gross_profit: string
   gross_profit: string
   sale_count: number
   gross_profit_margin: string
@@ -532,6 +567,8 @@ export interface AnalyticsSummary {
   total_sales: string
   refund_total: string
   net_sales: string
+  returned_cost_total: string
+  net_gross_profit: string
   gross_profit: string
   sale_count: number
   average_order_value: string

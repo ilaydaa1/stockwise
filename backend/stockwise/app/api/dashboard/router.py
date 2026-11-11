@@ -17,7 +17,7 @@ from stockwise.app.models.business import Business
 from stockwise.app.models.product import Product
 from stockwise.app.models.sale import Sale
 from stockwise.app.models.user import User
-from stockwise.app.services.returns import refund_total
+from stockwise.app.services.returns import return_totals
 from stockwise.app.services.periods import (
     business_timezone,
     local_date,
@@ -88,7 +88,7 @@ def get_dashboard_summary(
 
     sale_count = len(sales)
 
-    refunds = refund_total(
+    refunds, returned_cost = return_totals(
         db,
         business_id=business.id,
         since=start_datetime,
@@ -194,6 +194,10 @@ def get_dashboard_summary(
         total_sales=str(total_sales),
         refund_total=str(refunds),
         net_sales=str(total_sales - refunds),
+        returned_cost_total=str(returned_cost),
+        net_gross_profit=str(
+            gross_profit - (refunds - returned_cost)
+        ),
         gross_profit=str(gross_profit),
         sale_count=sale_count,
         gross_profit_margin=str(

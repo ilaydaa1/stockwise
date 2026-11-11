@@ -1532,6 +1532,16 @@ export default function Analytics() {
               <span>
                 Marj %{data?.gross_profit_margin || '0'}
               </span>
+
+              {Number(data?.refund_total ?? 0) > 0 && (
+                <span>
+                  · iadeler sonrası{' '}
+                  {formatCurrency(
+                    data?.net_gross_profit || '0',
+                    currency
+                  )}
+                </span>
+              )}
             </div>
           </article>
 

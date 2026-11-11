@@ -670,6 +670,11 @@ export default function Dashboard() {
                   maximumFractionDigits: 2,
                 }
               )}
+
+              {Number(summary?.refund_total ?? 0) > 0 &&
+                ` · iadeler sonrası ${money.format(
+                  Number(summary?.net_gross_profit ?? 0)
+                )}`}
             </p>
           </div>
         </article>

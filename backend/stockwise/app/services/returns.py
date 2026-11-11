@@ -48,27 +48,37 @@ def _as_utc(value: datetime) -> datetime:
     return value.astimezone(timezone.utc)
 
 
-def refund_total(
+def return_totals(
     db: Session,
     *,
     business_id: UUID,
     since: datetime,
-) -> Decimal:
-    """Refunds issued on or after ``since`` (a UTC instant).
+) -> tuple[Decimal, Decimal]:
+    """Refunds and returned cost on or after ``since`` (UTC).
 
-    Refunds are counted in the period in which the return happened,
-    not the period of the original sale.
+    Returns ``(refund_total, returned_cost_total)``. A return is
+    counted in the period in which it happened, not the period of
+    the original sale. The profit given back by returns is the
+    refund minus the cost of the units that came back.
     """
-    total = (
-        db.query(func.coalesce(func.sum(SaleReturn.refund_amount), 0))
+    refunds, cost = (
+        db.query(
+            func.coalesce(func.sum(SaleReturn.refund_amount), 0),
+            func.coalesce(func.sum(SaleReturn.cost_amount), 0),
+        )
         .filter(
             SaleReturn.business_id == business_id,
             SaleReturn.created_at >= since,
         )
-        .scalar()
+        .one()
     )
 
-    return Decimal(str(total)).quantize(Decimal("0.01"))
+    cents = Decimal("0.01")
+
+    return (
+        Decimal(str(refunds)).quantize(cents),
+        Decimal(str(cost)).quantize(cents),
+    )
 
 
 def returned_quantities(

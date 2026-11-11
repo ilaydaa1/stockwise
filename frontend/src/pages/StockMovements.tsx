@@ -4,6 +4,7 @@ import {
   useState,
   type CSSProperties,
   type FormEvent,
+  useRef,
 } from 'react'
 
 import {
@@ -75,6 +76,20 @@ function Icon({
       <path d={iconPaths[name]} />
     </svg>
   )
+}
+
+
+const PAGE_SIZE = 50
+
+const pagerButtonStyle: CSSProperties = {
+  height: '38px',
+  padding: '0 16px',
+  borderRadius: '8px',
+  border: '1px solid #dce2ea',
+  background: '#fff',
+  color: '#35445d',
+  fontWeight: 600,
+  cursor: 'pointer',
 }
 
 
@@ -165,6 +180,50 @@ export default function StockMovements() {
     useState(false)
 
 
+  // The server filters and pages the list; only one page is held.
+  const [total, setTotal] = useState(0)
+  const [offset, setOffset] = useState(0)
+  // False until any movement has been seen, to tell "nothing yet"
+  // apart from "nothing matches the filters".
+  const [hasMovements, setHasMovements] = useState(false)
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+
+  const fetchMovements = (
+    nextOffset: number,
+    filter: string = productFilter,
+    query: string = debouncedSearch
+  ) =>
+    getStockMovements({
+      productId: filter || undefined,
+      search: query.trim() || undefined,
+      limit: PAGE_SIZE,
+      offset: nextOffset,
+    })
+
+  const reloadMovements = async (
+    nextOffset: number,
+    filter: string = productFilter,
+    query: string = debouncedSearch
+  ) => {
+    const result = await fetchMovements(nextOffset, filter, query)
+
+    if (!result.data) {
+      setError(
+        result.error ||
+          'Stok hareketleri yüklenirken bir hata oluştu.'
+      )
+      return
+    }
+
+    setMovements(result.data)
+    setTotal(result.total ?? result.data.length)
+    setOffset(nextOffset)
+
+    if (result.data.length > 0) {
+      setHasMovements(true)
+    }
+  }
+
   const loadData = async () => {
     setLoading(true)
     setError(null)
@@ -174,7 +233,7 @@ export default function StockMovements() {
       movementsResult,
     ] = await Promise.all([
       getProducts(),
-      getStockMovements(),
+      fetchMovements(0),
     ])
 
     if (!productsResult.data) {
@@ -199,6 +258,15 @@ export default function StockMovements() {
 
     setProducts(productsResult.data)
     setMovements(movementsResult.data)
+    setTotal(
+      movementsResult.total ?? movementsResult.data.length
+    )
+    setOffset(0)
+
+    if (movementsResult.data.length > 0) {
+      setHasMovements(true)
+    }
+
     setLoading(false)
   }
 
@@ -206,6 +274,28 @@ export default function StockMovements() {
   useEffect(() => {
     loadData()
   }, [])
+
+  // Wait until typing pauses before asking the server.
+  useEffect(() => {
+    const timer = window.setTimeout(
+      () => setDebouncedSearch(search),
+      300
+    )
+
+    return () => window.clearTimeout(timer)
+  }, [search])
+
+  const firstFilterRun = useRef(true)
+
+  useEffect(() => {
+    // The initial load already fetched the first page.
+    if (firstFilterRun.current) {
+      firstFilterRun.current = false
+      return
+    }
+
+    reloadMovements(0, productFilter, debouncedSearch)
+  }, [productFilter, debouncedSearch])
 
 
   const productMap = useMemo(() => {
@@ -218,46 +308,7 @@ export default function StockMovements() {
   }, [products])
 
 
-  const normalizedSearch =
-    search
-      .trim()
-      .toLocaleLowerCase('tr-TR')
-
-
-  const filteredMovements =
-    movements.filter((movement) => {
-      if (
-        productFilter &&
-        movement.product_id !== productFilter
-      ) {
-        return false
-      }
-
-      if (!normalizedSearch) {
-        return true
-      }
-
-      const product =
-        productMap.get(movement.product_id)
-
-      const productName =
-        product?.name
-          .toLocaleLowerCase('tr-TR') || ''
-
-      const sku =
-        product?.sku
-          .toLocaleLowerCase('tr-TR') || ''
-
-      const note =
-        movement.note
-          ?.toLocaleLowerCase('tr-TR') || ''
-
-      return (
-        productName.includes(normalizedSearch) ||
-        sku.includes(normalizedSearch) ||
-        note.includes(normalizedSearch)
-      )
-    })
+  const filteredMovements = movements
 
 
   const openForm = () => {
@@ -405,10 +456,9 @@ export default function StockMovements() {
     const createdMovement =
       result.data
 
-    setMovements((current) => [
-      createdMovement,
-      ...current,
-    ])
+    setHasMovements(true)
+    // Show the newest page, which now starts with this movement.
+    reloadMovements(0)
 
     setProducts((current) =>
       current.map((product) =>
@@ -488,7 +538,7 @@ export default function StockMovements() {
 
             {!loading && !error && (
               <span className="sw-count">
-                {movements.length} hareket
+                {total} hareket
               </span>
             )}
           </header>
@@ -635,7 +685,7 @@ export default function StockMovements() {
           {!loading &&
             !error &&
             products.length > 0 &&
-            movements.length === 0 && (
+            !hasMovements && (
               <div style={emptyStateStyle}>
                 <span style={emptyIconStyle}>
                   <Icon
@@ -676,7 +726,7 @@ export default function StockMovements() {
 
           {!loading &&
             !error &&
-            movements.length > 0 && (
+            hasMovements && (
               <div className="sw-table-container">
                 <table className="sw-product-table">
                   <thead>
@@ -864,6 +914,67 @@ export default function StockMovements() {
                   >
                     Filtrelere uygun stok
                     hareketi bulunamadı.
+                  </div>
+                )}
+
+                {total > PAGE_SIZE && (
+                  <div
+                    style={{
+                      padding: '14px 20px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '12px',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <span
+                      style={{
+                        color: '#738096',
+                        fontSize: '13px',
+                      }}
+                    >
+                      {offset + 1}–
+                      {Math.min(offset + PAGE_SIZE, total)} / {total}
+                    </span>
+
+                    <div
+                      style={{
+                        display: 'flex',
+                        gap: '8px',
+                      }}
+                    >
+                      <button
+                        type="button"
+                        disabled={offset === 0}
+                        onClick={() =>
+                          reloadMovements(
+                            Math.max(0, offset - PAGE_SIZE)
+                          )
+                        }
+                        style={{
+                          ...pagerButtonStyle,
+                          opacity: offset === 0 ? 0.5 : 1,
+                        }}
+                      >
+                        Önceki
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={offset + PAGE_SIZE >= total}
+                        onClick={() =>
+                          reloadMovements(offset + PAGE_SIZE)
+                        }
+                        style={{
+                          ...pagerButtonStyle,
+                          opacity:
+                            offset + PAGE_SIZE >= total ? 0.5 : 1,
+                        }}
+                      >
+                        Sonraki
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

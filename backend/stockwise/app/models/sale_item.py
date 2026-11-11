@@ -28,8 +28,17 @@ class SaleItem(Base):
         nullable=False,
     )
 
+    # Checked at commit rather than per statement. Deleting a whole
+    # business removes its products and its sales in one transaction;
+    # an immediate check would reject the product rows before the
+    # sale lines pointing at them were gone. A product that still has
+    # sale lines at commit is refused as before.
     product_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("products.id"),
+        ForeignKey(
+            "products.id",
+            deferrable=True,
+            initially="DEFERRED",
+        ),
         nullable=False,
     )
 

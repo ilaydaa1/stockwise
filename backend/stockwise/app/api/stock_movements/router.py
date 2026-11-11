@@ -1,7 +1,8 @@
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from stockwise.app.api.stock_movements.schemas import (
@@ -15,6 +16,7 @@ from stockwise.app.core.deps import (
 )
 from stockwise.app.db.session import get_db
 from stockwise.app.models.business import Business
+from stockwise.app.models.product import Product
 from stockwise.app.models.stock_movement import StockMovement
 from stockwise.app.models.user import User
 from stockwise.app.services.inventory import (
@@ -23,6 +25,10 @@ from stockwise.app.services.inventory import (
     apply_stock_change,
     lock_products,
 )
+
+
+DEFAULT_PAGE_SIZE = 200
+MAX_PAGE_SIZE = 500
 
 
 router = APIRouter(
@@ -136,10 +142,19 @@ def create_stock_movement(
     response_model=list[StockMovementResponse],
 )
 def list_stock_movements(
+    response: Response,
     product_id: Optional[str] = None,
+    q: Optional[str] = Query(default=None, max_length=100),
+    limit: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
+    offset: int = Query(default=0, ge=0),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[StockMovementResponse]:
+    """Stock movements, newest first, one page at a time.
+
+    The total number of matching movements is returned in the
+    X-Total-Count header, so the body stays a plain list.
+    """
     business = (
         db.query(Business)
         .filter(Business.owner_id == user.id)
@@ -169,11 +184,43 @@ def list_stock_movements(
             StockMovement.product_id == product_uuid
         )
 
+    search = (q or "").strip()
+
+    if search:
+        # Escape the wildcard characters so they match literally.
+        pattern = (
+            "%"
+            + search.replace("\\", "\\\\")
+            .replace("%", "\\%")
+            .replace("_", "\\_")
+            + "%"
+        )
+
+        query = query.join(
+            Product,
+            Product.id == StockMovement.product_id,
+        ).filter(
+            or_(
+                Product.name.ilike(pattern, escape="\\"),
+                Product.sku.ilike(pattern, escape="\\"),
+                StockMovement.note.ilike(pattern, escape="\\"),
+            )
+        )
+
+    total = query.with_entities(func.count(StockMovement.id)).scalar() or 0
+
     movements = (
         query
-        .order_by(StockMovement.created_at.desc())
+        .order_by(
+            StockMovement.created_at.desc(),
+            StockMovement.id.desc(),
+        )
+        .limit(limit)
+        .offset(offset)
         .all()
     )
+
+    response.headers["X-Total-Count"] = str(total)
 
     return [
         _movement_to_response(movement)

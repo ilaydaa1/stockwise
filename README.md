@@ -74,7 +74,7 @@ Then open http://localhost:3000. The API documentation is at http://localhost:80
 | Stop, keeping containers | `docker compose stop` |
 | Start again | `docker compose start` |
 | Stop and remove containers (data is kept) | `docker compose down` |
-| Rebuild after changing code | `docker compose up -d --build` |
+| Rebuild after changing code | `docker compose up -d --build --force-recreate` |
 | Open a database shell | `docker compose exec postgres psql -U stockwise -d stockwise` |
 
 The database lives in a Docker volume named `stockwise_stockwise_pgdata`, which survives all of the commands above.
@@ -97,7 +97,7 @@ To change ports or passwords, copy `.env.example` to `.env` in the project root 
 | "port is already allocated" | Another program uses port 3000, 8000 or 5432. Set `FRONTEND_PORT`, `BACKEND_PORT` or `POSTGRES_PORT` in `.env`. A backend started by hand (Option B) also occupies port 8000; stop it first. |
 | `migrate` shows "Exited (1)" | A migration failed. Read `docker compose logs migrate`. |
 | Site loads but login says "Origin not allowed" | The site is being opened on a port the backend does not expect. Use the port set in `FRONTEND_PORT`. |
-| Code changes do not appear | Images are built from the code at build time. Run `docker compose up -d --build`. |
+| Code changes do not appear | Images are built from the code at build time, and a rebuilt image is only used once its container is recreated. Run `docker compose up -d --build --force-recreate`. The database restarts for a few seconds; its data is kept. |
 
 ### Option B: local development
 
@@ -187,7 +187,7 @@ All routes are under `/api`.
 | `GET/POST /categories` | Product categories |
 | `GET/POST /suppliers`, `PATCH /suppliers/{id}` | Suppliers and lead times |
 | `GET/POST /products`, `GET/PATCH/DELETE /products/{id}` | Product management |
-| `GET/POST /stock-movements` | Manual stock changes and history |
+| `GET/POST /stock-movements` | Manual stock changes; history is paged and searchable, with the total in the `X-Total-Count` header |
 | `GET/POST /sales` | List sales (paginated) and create a sale |
 | `GET/POST /sales/{id}/returns` | Return lines of a sale |
 | `GET /dashboard/summary` | Last 15 days at a glance |
@@ -198,8 +198,7 @@ State-changing requests need the `x-csrf-token` header, set to the value of the 
 ## Known limitations
 
 - Daily figures are grouped by UTC date, not the business timezone.
-- List endpoints are not paginated.
-- Gross profit on the dashboard and analytics pages is not yet reduced by returns; only the sales total shows a net figure.
+- The product list is not paginated; it is loaded whole.
 - Categories cannot be renamed or deleted, and suppliers cannot be deleted.
 - The automated tests run on SQLite, so PostgreSQL row locking is not exercised by them.
 - The Docker setup is for local use: it has no HTTPS, and the rate limiter sees every request as coming from the web server container.

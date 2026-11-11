@@ -20,6 +20,10 @@ class DashboardSummaryResponse(BaseModel):
     # Refunds issued in the period, and sales after subtracting them.
     refund_total: str
     net_sales: str
+    # Cost of the returned units, and gross profit after giving back
+    # the profit on them.
+    returned_cost_total: str
+    net_gross_profit: str
     gross_profit: str
     sale_count: int
     gross_profit_margin: str
