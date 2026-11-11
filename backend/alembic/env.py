@@ -14,7 +14,12 @@ from stockwise.app.db.base import DATABASE_URL  # noqa: E402
 import stockwise.app.models  # noqa: E402, F401  (registers every table)
 
 config = context.config
-config.set_main_option("sqlalchemy.url", DATABASE_URL)
+# Only the offline (--sql) mode reads this option. Percent signs are
+# doubled because the option goes through configparser interpolation.
+config.set_main_option(
+    "sqlalchemy.url",
+    DATABASE_URL.render_as_string(hide_password=False).replace("%", "%%"),
+)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from sqlalchemy.engine import URL
 from pydantic import ConfigDict
 from functools import lru_cache
 
@@ -34,6 +35,21 @@ class Settings(BaseSettings):
 
     rate_limit_register: str = "5/minute"
     rate_limit_login: str = "10/minute"
+
+    @property
+    def database_url(self) -> URL:
+        # The driver is named explicitly. A bare "postgresql://"
+        # address lets SQLAlchemy pick its default driver, which
+        # changed between releases. URL.create also escapes special
+        # characters in the password.
+        return URL.create(
+            "postgresql+psycopg2",
+            username=self.postgres_user,
+            password=self.postgres_password,
+            host=self.postgres_host,
+            port=self.postgres_port,
+            database=self.postgres_db,
+        )
 
 
 @lru_cache()
