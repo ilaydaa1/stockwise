@@ -3,3 +3,9 @@
 
 # Generated dataset: keep LF so regenerated files compare equal on every OS
 data/synthetic/** text eol=lf
+
+# Files read by Linux containers must keep LF line endings on every OS
+*.sh text eol=lf
+*.conf text eol=lf
+Dockerfile text eol=lf
+.dockerignore text eol=lf

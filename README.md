@@ -48,22 +48,70 @@ frontend/
     lib/api.ts             typed API client
 data/synthetic/            generated dataset (CSV) and its manifest
 docs/                      dataset and costing documentation
-compose.yaml               local PostgreSQL
+compose.yaml               database, migrations, backend and frontend
 ```
 
 ## Getting started
 
-Requirements: Docker, Python 3.11+, Node.js 20+.
+There are two ways to run StockWise. Docker is the quickest; the local setup is better while changing code.
 
-### 1. Database
+### Option A: everything in Docker
+
+Requirement: Docker Desktop. No Python or Node.js installation is needed.
+
+Start the database, apply migrations, and start the backend and frontend:
 
 ```bash
-docker compose up -d
+docker compose up -d --build
 ```
 
-This starts PostgreSQL on port 5432 with the user, password, and database name `stockwise` / `stockwise_local_password` / `stockwise`. Override them with `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB`.
+Then open http://localhost:3000. The API documentation is at http://localhost:8000/docs.
 
-### 2. Backend
+| Task | Command |
+|---|---|
+| See what is running | `docker compose ps` |
+| Follow the logs | `docker compose logs -f backend` |
+| Stop, keeping containers | `docker compose stop` |
+| Start again | `docker compose start` |
+| Stop and remove containers (data is kept) | `docker compose down` |
+| Rebuild after changing code | `docker compose up -d --build` |
+| Open a database shell | `docker compose exec postgres psql -U stockwise -d stockwise` |
+
+The database lives in a Docker volume named `stockwise_stockwise_pgdata`, which survives all of the commands above.
+
+> **Warning:** `docker compose down -v` deletes that volume and with it all data. Only use it when you want an empty database.
+
+What happens on `up`:
+
+1. `postgres` starts and waits until it accepts connections.
+2. `migrate` applies any pending database migrations, then exits. Seeing it as "Exited (0)" is normal.
+3. `backend` starts once the migrations have finished.
+4. `frontend` serves the site and forwards requests under `/api` to the backend, so the browser only talks to one address.
+
+To change ports or passwords, copy `.env.example` to `.env` in the project root and edit it.
+
+#### Troubleshooting
+
+| Symptom | Cause and fix |
+|---|---|
+| "port is already allocated" | Another program uses port 3000, 8000 or 5432. Set `FRONTEND_PORT`, `BACKEND_PORT` or `POSTGRES_PORT` in `.env`. A backend started by hand (Option B) also occupies port 8000; stop it first. |
+| `migrate` shows "Exited (1)" | A migration failed. Read `docker compose logs migrate`. |
+| Site loads but login says "Origin not allowed" | The site is being opened on a port the backend does not expect. Use the port set in `FRONTEND_PORT`. |
+| Code changes do not appear | Images are built from the code at build time. Run `docker compose up -d --build`. |
+
+### Option B: local development
+
+Requirements: Docker (for the database only), Python 3.11+, Node.js 20+.
+
+#### 1. Database
+
+```bash
+docker compose up -d postgres
+```
+
+This starts only PostgreSQL, on port 5432.
+
+#### 2. Backend
 
 Run these from the `backend` folder.
 
@@ -71,13 +119,13 @@ Run these from the `backend` folder.
 python -m venv .venv
 ```
 
-Activate the virtual environment (`.venv\Scripts\activate` on Windows, `source .venv/bin/activate` on macOS and Linux), then:
+Activate the virtual environment (`.venv\Scripts\Activate.ps1` in PowerShell, `source .venv/bin/activate` on macOS and Linux), then:
 
 ```bash
-pip install -e ".[dev]"
+pip install -r requirements-dev.txt
 ```
 
-Copy `.env.example` to `.env` and adjust the values if needed, then apply the migrations and start the API:
+Apply the migrations and start the API:
 
 ```bash
 alembic upgrade head
@@ -87,9 +135,9 @@ alembic upgrade head
 uvicorn stockwise.app.main:app --reload
 ```
 
-The API runs at http://localhost:8000, with interactive documentation at http://localhost:8000/docs.
+The API runs at http://localhost:8000, with interactive documentation at http://localhost:8000/docs. Settings can be overridden by copying `backend/.env.example` to `backend/.env`.
 
-### 3. Frontend
+#### 3. Frontend
 
 Run these from the `frontend` folder.
 
@@ -101,7 +149,7 @@ npm install
 npm run dev
 ```
 
-The app runs at http://localhost:5173. To point it at a different API, copy `.env.example` to `.env` and set `VITE_API_BASE_URL`.
+The app runs at http://localhost:5173 and reloads as you edit.
 
 ## Synthetic dataset
 
@@ -154,5 +202,5 @@ State-changing requests need the `x-csrf-token` header, set to the value of the 
 - Gross profit on the dashboard and analytics pages is not yet reduced by returns; only the sales total shows a net figure.
 - Categories cannot be renamed or deleted, and suppliers cannot be deleted.
 - The automated tests run on SQLite, so PostgreSQL row locking is not exercised by them.
-- The backend and frontend are not containerised; Docker Compose only provides the database.
+- The Docker setup is for local use: it has no HTTPS, and the rate limiter sees every request as coming from the web server container.
 - There are no frontend tests and no CI pipeline yet.

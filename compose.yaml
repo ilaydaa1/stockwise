@@ -1,10 +1,13 @@
+# Fixed project name, so the database volume keeps the same name
+# whatever folder the repository is checked out into.
+name: stockwise
+
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: stockwise_postgres
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-stockwise}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-stockwise_local_password}
@@ -16,6 +19,51 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # Applies database migrations, then exits. The backend waits for it.
+  migrate:
+    build: ./backend
+    command: ["alembic", "upgrade", "head"]
+    environment: &backend-environment
+      # Inside the Compose network the database is reached by its
+      # service name and its internal port, not localhost.
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: ${POSTGRES_USER:-stockwise}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-stockwise_local_password}
+      POSTGRES_DB: ${POSTGRES_DB:-stockwise}
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-change-in-production}
+      # Addresses the browser may load the site from.
+      ALLOWED_CORS_ORIGINS: >-
+        ["http://localhost:${FRONTEND_PORT:-3000}",
+        "http://127.0.0.1:${FRONTEND_PORT:-3000}",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    environment: *backend-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
 
 volumes:
   stockwise_pgdata:
