@@ -1,13 +1,12 @@
 import uuid
 
 import pytest
-from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 from stockwise.app.models.category import Category
 from stockwise.app.models.product import Product
 from stockwise.app.models.supplier import Supplier
-from tests.conftest import TestingSessionLocal
+from tests.conftest import TestingSessionLocal, enforced_foreign_keys
 from tests.test_products import (
     _create_business,
     _create_product,
@@ -273,15 +272,15 @@ class TestProductReferences:
             db = TestingSessionLocal()
 
             try:
-                db.execute(text("PRAGMA foreign_keys = ON"))
-                product = db.get(Product, uuid.UUID(product_id))
-                setattr(product, column, uuid.UUID(value))
+                with enforced_foreign_keys(db):
+                    product = db.get(Product, uuid.UUID(product_id))
+                    setattr(product, column, uuid.UUID(value))
 
-                with pytest.raises(IntegrityError):
-                    db.commit()
+                    with pytest.raises(IntegrityError):
+                        db.commit()
+
+                    db.rollback()
             finally:
-                db.rollback()
-                db.execute(text("PRAGMA foreign_keys = OFF"))
                 db.close()
 
     def test_database_accepts_same_business_reference(self, client):
@@ -291,21 +290,23 @@ class TestProductReferences:
         db = TestingSessionLocal()
 
         try:
-            db.execute(text("PRAGMA foreign_keys = ON"))
-            product = db.get(Product, uuid.UUID(product_id))
+            with enforced_foreign_keys(db):
+                product = db.get(Product, uuid.UUID(product_id))
 
-            category = Category(business_id=product.business_id, name="A")
-            supplier = Supplier(
-                business_id=product.business_id,
-                name="B",
-                lead_time_days=3,
-            )
-            db.add_all([category, supplier])
-            db.flush()
+                category = Category(
+                    business_id=product.business_id,
+                    name="A",
+                )
+                supplier = Supplier(
+                    business_id=product.business_id,
+                    name="B",
+                    lead_time_days=3,
+                )
+                db.add_all([category, supplier])
+                db.flush()
 
-            product.category_id = category.id
-            product.supplier_id = supplier.id
-            db.commit()
+                product.category_id = category.id
+                product.supplier_id = supplier.id
+                db.commit()
         finally:
-            db.execute(text("PRAGMA foreign_keys = OFF"))
             db.close()

@@ -265,6 +265,7 @@ class TestChronology:
 
 
 class TestTenantBoundaries:
+    @pytest.mark.sqlite_only
     def test_detects_references_into_another_business(
         self, client, history
     ):
